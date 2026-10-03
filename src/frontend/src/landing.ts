@@ -172,7 +172,7 @@ $("bite").addEventListener("click", () => { if (!demo.decided) decide("muscle", 
 
 /* ---------- scroll: Lenis for the smoothing, one GSAP timeline for every transition ---------- */
 const SCENES = slides.length
-const UNIT = () => innerHeight * 1.9  // scroll distance of one scene
+const UNIT = () => innerHeight * 2.6  // scroll distance of one scene
 const sceneTitle = $("sec"), count = $("count")
 const bar = $("progress")
 const dots = slides.map((_, i) => {
@@ -185,14 +185,16 @@ const dots = slides.map((_, i) => {
 let lenis: Lenis | null = null
 const toScene = (i: number) => {
   const y = i === 0 ? 0 : (Math.min(SCENES - 1, Math.max(0, i)) + 0.3) * UNIT()
-  if (lenis) lenis.scrollTo(y, { duration: 1.4 })
+  if (lenis) lenis.scrollTo(y, { duration: 2.2 })
   else slides[i].scrollIntoView({ behavior: "smooth" })
 }
 
+// the scroll position (in scenes) where each slide starts taking over: just as its transition reveals it, so its entrance plays under the cover
+const ENTER = [0, 0.9, 2.0, 2.8, 4.0, 5.0, 5.7, 6.8, 8.0]
 function setActive(i: number) {
   if (i === cur && slides[i].classList.contains("active")) return
   cur = i
-  slides.forEach((s, k) => s.classList.toggle("active", k === i))
+  slides[i].classList.add("active")  // the slide it replaces keeps .active until it has faded: dropping it would snap its entrance state mid-transition
   dots.forEach((d, k) => d.classList.toggle("on", k === i))
   sceneTitle.textContent = slides[i].dataset.title ?? ""
   count.textContent = `${i + 1} / ${SCENES}`
@@ -201,7 +203,7 @@ function setActive(i: number) {
 }
 
 const COLORS = ["#9BFF60", "#CDCCFF", "#7B7DFF", "#FFFFFF", "#FFD166", "#FF7AA2", "#5EE6FF"]
-const PARTS = ".w, .card, .node, .stats > div, .steps4 li, .road li, .rules li, .panel, .term, .lead, .body, .who, .tag, .micro, .credits"
+const PARTS = ".w, .card, .node, .stats > div, .steps4 li, .road li, .rules li, .panel, .term, .lead, .body, .who, .tag, .micro, .credits, .fine"
 const box = (el: Element) => { const r = el.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height, cx: r.left + r.width / 2, cy: r.top + r.height / 2 } }
 const fs = (el: Element) => parseFloat(getComputedStyle(el).fontSize)
 
@@ -260,10 +262,11 @@ function build() {
   Object.assign(dot.style, { width: `${dsz}px`, height: `${dsz}px`, left: `${pr.left + pr.width * 0.5 - dsz / 2}px`, top: `${pr.top + pr.height * 0.78 - dsz / 2}px` })
 
   const tl = gsap.timeline({ defaults: { ease: "power2.inOut" }, scrollTrigger: {
-    trigger: scroller, start: "top top", end: "bottom bottom", scrub: 0.7, invalidateOnRefresh: true,
+    trigger: scroller, start: "top top", end: "bottom bottom", scrub: 1.2, invalidateOnRefresh: true,
     onUpdate: (self) => {
-      const p = self.progress * SCENES  // scene s is on screen from s + 0.1 until its own boundary swaps it out
-      setActive(Math.min(SCENES - 1, Math.max(0, Math.floor(p - 0.05))))
+      const p = self.progress * SCENES
+      setActive(ENTER.reduce((n, e, k) => (p >= e ? k : n), 0))
+      slides.forEach((sl, k) => { if (k !== cur && sl.classList.contains("active") && Number(gsap.getProperty(sl, "opacity")) < 0.02) sl.classList.remove("active") })
       showing.clear()
       slides.forEach((sl) => {
         const cv = sl.querySelector<HTMLCanvasElement>("canvas.dither")
@@ -280,9 +283,9 @@ function build() {
     tl.set(dot, { visibility: "visible" }, t).set(period, { visibility: "hidden" }, t)
     tl.to(h1, { scale: 1.5, autoAlpha: 0, duration: 0.3, ease: "power2.in" }, t)
     tl.to(slides[0].querySelectorAll(".micro, .lead, .hint, canvas.dither"), { autoAlpha: 0, duration: 0.25 }, t)
-    tl.to(dot, { x: innerWidth / 2 - (pr.left + pr.width * 0.5), y: innerHeight / 2 - (pr.top + pr.height * 0.78), scale: (Math.max(innerWidth, innerHeight) * 1.5) / dsz, duration: 0.55, ease: "power3.in" }, t)
-    tl.fromTo(slides[1], { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.15, ease: "none" }, t + 0.5)
-    tl.set(slides[0], { autoAlpha: 0 }, t + 0.66)
+    tl.to(dot, { x: innerWidth / 2 - (pr.left + pr.width * 0.5), y: innerHeight / 2 - (pr.top + pr.height * 0.78), scale: (Math.max(innerWidth, innerHeight) * 1.5) / dsz, duration: 0.55, ease: "power2.in" }, t)
+    tl.fromTo(slides[1], { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3, ease: "none" }, t + 0.38)
+    tl.to(slides[0], { autoAlpha: 0, duration: 0.15, ease: "none" }, t + 0.7)
   }
 
   // 1 -> 2: the terminal types the next title, then we zoom into the terminal and it becomes the slide
@@ -292,10 +295,10 @@ function build() {
     tl.fromTo(chars, { opacity: 0 }, { opacity: 1, duration: 0.01, ease: "none", stagger: 0.3 / chars.length }, t + 0.05)
     tl.set(term, { transformOrigin: `${tl_.left - trm.left}px ${tl_.top - trm.top}px` }, t)
     tl.to(slides[1].querySelector(".cols > div:first-child"), { autoAlpha: 0, x: -80, duration: 0.25 }, t + 0.35)
-    tl.to(term, { scale: zoomTerm, x: hr.left - tl_.left, y: hr.top - tl_.top, duration: 0.55, ease: "power3.inOut" }, t + 0.4)
+    tl.to(term, { scale: zoomTerm, x: hr.left - tl_.left, y: hr.top - tl_.top, duration: 0.6, ease: "power2.inOut" }, t + 0.4)
     tl.to(term.querySelectorAll("p:not(.typed)"), { autoAlpha: 0, duration: 0.2 }, t + 0.55)
-    tl.fromTo(slides[2], { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.18, ease: "none" }, t + 0.82)
-    tl.set(slides[1], { autoAlpha: 0 }, t + 1.0)
+    tl.fromTo(slides[2], { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.4, ease: "none" }, t + 0.55)
+    tl.to(slides[1], { autoAlpha: 0, duration: 0.15, ease: "none" }, t + 0.95)
   }
 
   // 2 -> 3: eyelids close on the "close your eyes" slide, and open on the brake demo
@@ -309,9 +312,9 @@ function build() {
   // 3 -> 4: the demo freezes and breaks into blue pixels, which clear to show the diagram
   {
     const t = 3.55
-    tl.to(dissolve, { p: 1, duration: 0.3, ease: "none", onUpdate: drawCells }, t)
-    tl.set(slides[3], { autoAlpha: 0 }, t + 0.31).set(slides[4], { autoAlpha: 1 }, t + 0.31)
-    tl.to(dissolve, { p: 0, duration: 0.3, ease: "none", onUpdate: drawCells }, t + 0.34)
+    tl.to(dissolve, { p: 1, duration: 0.45, ease: "none", onUpdate: drawCells }, t)
+    tl.set(slides[3], { autoAlpha: 0 }, t + 0.46).set(slides[4], { autoAlpha: 1 }, t + 0.46)
+    tl.to(dissolve, { p: 0, duration: 0.45, ease: "none", onUpdate: drawCells }, t + 0.5)
   }
 
   // 4 -> 5: zoom into the blue box (rein, on your computer) until blue is the whole screen: the impact slide
@@ -320,8 +323,8 @@ function build() {
     tl.to(slides[4].querySelectorAll(".node:not(.blue), .arrow, .rules, h2, .tag"), { autoAlpha: 0, duration: 0.25 }, t)
     tl.to(blue, { x: innerWidth / 2 - bb.cx, y: innerHeight / 2 - bb.cy, scale: Math.max(innerWidth / bb.width, innerHeight / bb.height) * 1.2, duration: 0.55, ease: "power3.inOut" }, t + 0.1)
     tl.to(blue.children, { autoAlpha: 0, duration: 0.2 }, t + 0.35)
-    tl.fromTo(slides[5], { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.12, ease: "none" }, t + 0.6)
-    tl.set(slides[4], { autoAlpha: 0 }, t + 0.74)
+    tl.fromTo(slides[5], { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3, ease: "none" }, t + 0.5)
+    tl.to(slides[4], { autoAlpha: 0, duration: 0.12, ease: "none" }, t + 0.82)
   }
 
   // 5 -> 6: the impact slide lifts away like a curtain and the how-to is already there
@@ -339,7 +342,7 @@ function build() {
     tl.set(slides[7], { autoAlpha: 1, zIndex: 6 }, t)
     tl.to(gsap.utils.toArray<HTMLElement>(slides[6].querySelectorAll(PARTS)), { x: () => gsap.utils.random(-1000, 1000), y: () => gsap.utils.random(-700, 700), rotation: () => gsap.utils.random(-160, 160),
       scale: () => gsap.utils.random(0.4, 2.4), autoAlpha: 0, duration: 0.5, ease: "power3.in", stagger: { amount: 0.1, from: "center" } }, t)
-    tl.set(slides[6], { autoAlpha: 0 }, t + 0.62).set(slides[7], { zIndex: 8 }, t + 0.62)
+    tl.to(slides[6], { autoAlpha: 0, duration: 0.4, ease: "none" }, t + 0.3).set(slides[7], { zIndex: 8 }, t + 0.7)
   }
 
   // 7 -> 8: zoom into the last roadmap card, "Real users", and it opens onto the close
@@ -348,8 +351,8 @@ function build() {
     tl.to(slides[7].querySelectorAll(".road li:not(:nth-child(5)), h2, .tag"), { autoAlpha: 0, duration: 0.25 }, t)
     tl.to(card, { x: innerWidth / 2 - cb.cx, y: innerHeight / 2 - cb.cy, scale: Math.max(innerWidth / cb.width, innerHeight / cb.height) * 1.25, duration: 0.55, ease: "power3.inOut" }, t + 0.1)
     tl.to(card.children, { autoAlpha: 0, duration: 0.2 }, t + 0.4)
-    tl.fromTo(slides[8], { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.18, ease: "none" }, t + 0.55)
-    tl.set(slides[7], { autoAlpha: 0 }, t + 0.74)
+    tl.fromTo(slides[8], { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3, ease: "none" }, t + 0.45)
+    tl.to(slides[7], { autoAlpha: 0, duration: 0.12, ease: "none" }, t + 0.75)
   }
   return tl
 }
@@ -451,7 +454,7 @@ if (still) {
   slides.forEach((s) => s.classList.add("active"))
   slides.forEach((s) => { const cv = s.querySelector<HTMLCanvasElement>("canvas.dither"); if (cv) { cv.style.display = "block"; drawDither(cv, 3) } })
 } else {
-  lenis = new Lenis({ lerp: 0.085, wheelMultiplier: 0.9 })
+  lenis = new Lenis({ lerp: 0.07, wheelMultiplier: 0.6 })
   lenis.on("scroll", ScrollTrigger.update)
   gsap.ticker.add((t) => lenis?.raf(t * 1000))
   gsap.ticker.lagSmoothing(0)
