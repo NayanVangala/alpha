@@ -28,7 +28,7 @@ export default function App() {
   const [started, setStarted] = useState(false)
   const [nerdOpen, setNerdOpen] = useState(false)
   const camera = useCameraBrake()
-  const open = !!s && s.headband.phase === "connected" && !s.headband.calibrating
+  const open = !!s && s.headband.phase === "connected" && !s.headband.calibrating && s.headband.calibration_ok !== false
   const ready = open && started // nothing reaches the board behind the connect screen or the start click
 
   const send = useCallback(

@@ -246,12 +246,14 @@ def coach_page():
 def headband():
     """Where the connection stands, for the board's connect screen."""
     out = {"phase": session.phase, "device": session.device, "error": session.error, "scanning": session.scanning,
-           "live": False, "calibrating": False, "calibrate_left": None, "alpha": None, "muscle": None, "battery": None, "hr": None, "blink_n": 0}
+           "live": False, "calibrating": False, "calibrate_left": None, "alpha": None, "muscle": None, "battery": None, "hr": None, "blink_n": 0,
+           "calibration_ok": True, "calibration_note": ""}
     if session.coach is not None:
         st = session.coach.state
         until = st.get("calibrate_until")
         out.update(live=st.get("live", False), calibrating=st.get("calibrating", False), alpha=st.get("alpha"),
-                   muscle=st.get("muscle"), battery=st.get("battery"), hr=st.get("hr"), blink_n=st.get("blink_n", 0), stream=session.source.stream() if hasattr(session.source, "stream") else None,
+                   muscle=st.get("muscle"), battery=st.get("battery"), hr=st.get("hr"), blink_n=st.get("blink_n", 0),
+                   calibration_ok=st.get("calibration_ok", True), calibration_note=st.get("calibration_note", ""), stream=session.source.stream() if hasattr(session.source, "stream") else None,
                    error=st.get("error") or session.error,
                    calibrate_left=max(0.0, until - time.time()) if until else None)
     return out

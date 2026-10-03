@@ -170,3 +170,39 @@ def test_personal_constants_change_the_calibrated_lines(tmp_path, monkeypatch):
     c.calibrate()
     assert c.clench.threshold_uv > plain.clench.threshold_uv  # a higher K raised the bite line
     assert c.eyes_threshold < plain.eyes_threshold  # a lower floor and RISE lowered the eyes-closed line
+
+
+def test_a_noisy_calibration_is_refused_not_saved_and_blocks_gestures(tmp_path):
+    saved, fired = [], []
+    c, clock, band, _ = make(tmp_path)
+    c.on_calibrated = saved.append
+    c.on_gesture = lambda kind, ago: fired.append(kind)
+    real = band.read
+    chunks = {"n": 0}
+
+    def noisy():  # every fifth quarter-second the ears fill with muscle noise, like a tense jaw
+        d = real()
+        chunks["n"] += 1
+        if chunks["n"] % 5 == 0:
+            d["eeg"][[0, 3]] += band.rng.normal(0, 150, d["eeg"][[0, 3]].shape)
+        return d
+
+    band.read = noisy
+    c.calibrate()
+    assert c.state["calibration_ok"] is False and c.state["calibration_note"].startswith("Calibration refused")
+    assert saved == []  # never persisted
+    band.read = real
+    c.calibrate()  # a clean one clears it
+    assert c.state["calibration_ok"] is True and len(saved) == 1
+
+
+def test_a_latched_bite_signal_is_dropped_instead_of_firing_forever():
+    from src.backend.signals import ClenchDetector
+
+    rng = np.random.default_rng(0)
+    d = ClenchDetector(threshold_uv=30.0, min_s=0.5)
+    events = []
+    for i in range(int(14 * 256 / 64)):  # 14 s of a signal that never lets go
+        events += d.feed(rng.normal(0, 200, (4, 64)))
+    assert events == [] and d.run_start is None or d.holding_s < 10.5  # dropped at 10 s, not carried on
+    assert d.quiet_until > 0

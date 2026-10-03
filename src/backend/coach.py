@@ -35,6 +35,7 @@ PERSONAL = Path("data/personal.json")  # per-wearer detector constants measured 
 TUNABLE = {"FRAC", "K", "FLOOR", "RISE", "MIN_THRESHOLD", "MAX_THRESHOLD"}
 HEAD_AXES = Path("data/head_axes.json")  # {"nod": axis, "shake": axis}, measured by scripts/check_nod.py
 CALIBRATE_S = 20
+WEAK_REST_FRAC = 0.15  # a still jaw over the bite line this often is a bad calibration: refuse it
 NOISY_REST_FRAC = 0.05  # more of the still 20 s than this over the bite line = noisy contact or a tense jaw
 SAMPLE_EVERY_S = 5  # one samples row per this many seconds of live data
 LOW_BLINKS_PER_MIN = 7  # healthy is ~15; screens drop it to ~5
@@ -122,6 +123,7 @@ class Coach:
             "calibrating": False,
             "calibrate_until": None,
             "calibration_note": "",
+            "calibration_ok": True,  # false: the last calibration was refused, and the board stays shut
             "blink_rate": None,
             "last_blink": 0.0,
             "blink_n": 0,
@@ -151,6 +153,7 @@ class Coach:
         self.gestures = Gestures(cal["clench"], cal["eyes"])
         self.want_calibration = False
         self.state["calibration_note"] = "Using your saved calibration. Recalibrate if the headband moved."
+        self.state["calibration_ok"] = True
 
     def run(self):
         """Loop until stop(). Errors show on the dashboard instead of silently killing the thread."""
@@ -194,6 +197,7 @@ class Coach:
                 if attr in TUNABLE:
                     setattr(det, attr, float(value))
         enough = eeg.shape[1] >= 0.8 * seconds * EEG_FS
+        weak = None  # set when the calibration can't be trusted
         if not enough:
             note = "Barely got data from the headband, so default settings are in use. Check it's on and connected, then recalibrate."
         else:
@@ -210,6 +214,14 @@ class Coach:
             note = "Calibrated." if not missed else f"Calibrated, but didn't catch {' or '.join(missed)}; using defaults for those."
             if clench.rest_burst_frac > NOISY_REST_FRAC:
                 note += " The jaw sensors were noisy while you sat still: relax your jaw, make sure the band is snug and damp, then recalibrate."
+            ear = contact(eeg[:, -2 * EEG_FS :])
+            problems = []
+            if ear is not None and not (ear[0] and ear[3]):
+                problems.append("the sensors behind your ears aren't touching skin")
+            if clench.rest_burst_frac > WEAK_REST_FRAC:
+                problems.append("your jaw sensors were noisy while you sat still")
+            if problems:
+                weak = f"Calibration refused: {' and '.join(problems)}. Seat the headband snugly, wet the sensors a little, relax your jaw, and try again."
         self.blinks, self.clench, self.posture = blinks, clench, posture
         self.fast = FastBlink(blinks.threshold_uv, blinks.sign)
         self.eyes_threshold = eyes.threshold
@@ -220,7 +232,9 @@ class Coach:
         self.cooldown = {"break": self.clock()}
         self.state.update(calibrating=False, calibrate_until=None, calibration_note=note,
                           blink_rate=None, hr=None, loose_sensors=None)
-        if enough and self.on_calibrated:
+        refused = weak or (None if enough else note)
+        self.state.update(calibration_ok=refused is None, **({"calibration_note": refused} if refused else {}))
+        if enough and not weak and self.on_calibrated:  # a refused calibration is never saved
             self.on_calibrated(self.calibration)
 
     def _log(self, kind, value, app):
@@ -327,7 +341,7 @@ class Coach:
         self.events.extend((now, "blink") for _ in new_blinks)
         for kind, ago in self.gestures.feed(eeg, new_blinks):
             self.events.append((now, kind))
-            if self.on_gesture:
+            if self.on_gesture and self.state["calibration_ok"]:  # nothing acts on a refused calibration
                 self.on_gesture(kind, ago)
         self.state["alpha"] = self.gestures.eyes.level  # live, for the board's aura and brake meter
         self.state["muscle"] = self.gestures.clench.level  # live bite level, 1.0 = the bite threshold

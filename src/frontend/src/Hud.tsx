@@ -32,7 +32,7 @@ const Key = ({ children }: { children: string }) => <b className="font-semibold 
 export function Hud() {
   const { s, setS, lost } = useBoard()
   const camera = useCameraBrake() // runs here, not in a browser tab: this window isn't throttled in the background
-  const open = !!s && s.headband.phase === "connected" && !s.headband.calibrating
+  const open = !!s && s.headband.phase === "connected" && !s.headband.calibrating && s.headband.calibration_ok !== false
   const send = useCallback(
     async (kind: Gesture, ago = 0) => {
       const next = await api.input(kind, ago)

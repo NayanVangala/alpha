@@ -1,4 +1,5 @@
 import { motion } from "motion/react"
+import { api } from "@/lib/api"
 import { ReinLogo } from "@/components/ReinLogo"
 import { RollText } from "@/components/RollText"
 import { Badge } from "@/components/ui/badge"
@@ -17,8 +18,11 @@ const signal = (rssi?: number | null) =>
 export function Gate({ h, onConnectClick }: { h: Headband; onConnectClick: () => void }) {
   const { devices, scanning, connectingTo, error: shownError, rescan, connect } = useDevices(h, onConnectClick)
   const calibrating = h.phase === "connected" && h.calibrating
+  const refused = h.phase === "connected" && !h.calibrating && h.calibration_ok === false
 
-  const title: [string, string?][] = calibrating
+  const title: [string, string?][] = refused
+    ? [["That calibration "], ["wasn't good enough.", "text-ultramarine"]]
+    : calibrating
     ? [["Hold still while it "], ["learns you.", "text-ultramarine"]]
     : h.phase === "connecting"
       ? [["Connecting to "], [`${h.device?.name ?? "the headband"}…`, "text-ultramarine"]]
@@ -43,12 +47,18 @@ export function Gate({ h, onConnectClick }: { h: Headband; onConnectClick: () =>
           className="m-0 text-display font-medium leading-[0.98] tracking-[-0.05em]"
         />
         <p className="m-0 max-w-[46ch] text-body text-muted-foreground">
-          {calibrating
+          {refused
+            ? h.calibration_note
+            : calibrating
             ? "Twenty seconds sitting upright, jaw relaxed, eyes open, reading this screen. Don't stare into space: the board learns your normal, awake brain waves, and your eyes-closed brake is measured against them."
             : "Hold the Muse's button until the lights sweep. rein opens once it's connected and has learned your jaw and blinks."}
         </p>
 
-        {calibrating ? (
+        {refused ? (
+          <Button type="button" className="w-fit rounded-full px-6" onClick={() => void api.calibrate()}>
+            Try again
+          </Button>
+        ) : calibrating ? (
           <div className="grid gap-4">
             <p className="m-0 text-countdown font-medium leading-[0.9] tracking-[-0.06em] tabular-nums">
               {Math.ceil(left)}

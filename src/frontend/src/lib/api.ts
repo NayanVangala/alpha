@@ -20,6 +20,9 @@ export type Headband = {
   hr: number | null
   /** blinks seen since connecting: the page flashes its blink light each time this goes up */
   blink_n: number
+  /** false: the last calibration was refused as too noisy to trust; the board stays shut until a good one */
+  calibration_ok: boolean
+  calibration_note: string
 }
 /** One agent decision: what, yes / no / stop, and what decided it (the keyboard stand-in counts as keys). */
 export type Decision = { what: string; verdict: "yes" | "no" | "stop"; by: "brain" | "muscle" | "silence" | "keys" | "camera" | "presence" | "head" }

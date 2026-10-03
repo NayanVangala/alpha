@@ -281,6 +281,7 @@ class ClenchDetector:
     its contact noise ran 100-200 uV and buried bites that lifted the ear channels from 4 to 30-60 uV.
     """
 
+    MAX_RUN_S = 10.0  # a 'bite' this long is a latched signal (an electrode shifting, the band being adjusted), not a jaw
     K, FLOOR = 3.0, 15.0  # the bite line: K x the typical relaxed window level, never below FLOOR microvolts
 
     def __init__(self, threshold_uv=40.0, min_s=1.0, fs=EEG_FS):
@@ -295,6 +296,7 @@ class ClenchDetector:
         self.n_seen = 0
         self.run_start = None  # sample index where the current burst began
         self.below = 0
+        self.quiet_until = 0  # after a latched run: ignore the signal until it has settled
         self.level = None  # latest window level as a fraction of the threshold: 1.0 means biting
         self.rest_burst_frac = 0.0  # share of calibration windows already over the threshold: noise or tension
 
@@ -349,10 +351,15 @@ class ClenchDetector:
             w, self.pending = self.pending[:, : self.win], self.pending[:, self.win :]
             v = self._windows(w)[0]
             self.level = v / self.threshold_uv
+            if self.n_seen < self.quiet_until:
+                self.n_seen += self.win
+                continue
             if v > self.threshold_uv:
                 if self.run_start is None:
                     self.run_start = self.n_seen
                 self.below = 0
+                if (self.n_seen - self.run_start) / self.fs > self.MAX_RUN_S:  # latched: drop it, and wait 2 s
+                    self.run_start, self.quiet_until = None, self.n_seen + 2 * self.fs
             elif self.run_start is not None:
                 self.below += self.win
                 if self.below >= 2 * self.win:  # 0.5 s of quiet ends the burst
