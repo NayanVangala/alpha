@@ -25,6 +25,9 @@
   #cal i { position: absolute; width: 36px; height: 36px; margin: -18px 0 0 -18px; border-radius: 50%; background: var(--blue); }
   #cal p { position: absolute; left: 0; right: 0; bottom: 8vh; text-align: center; margin: 0; color: var(--soft); }
   #picked { padding: 0 20px 20px; color: var(--soft); }
+  .t.aim { outline: 5px solid var(--blue); outline-offset: -5px; }
+  #result { margin: 0 20px 20px; padding: 16px 18px; background: #fff; border: 1px solid var(--line); border-radius: 12px; display: none; }
+  #result b { font-size: 1.6rem; letter-spacing: -0.04em; font-weight: 500; }
 
 @view-transition { navigation: auto; }
 ::view-transition-old(root) { animation: 0.55s cubic-bezier(0.625, 0.05, 0, 1) both vt-out; }
@@ -39,10 +42,12 @@
   <a href="/board">Open the app</a>
   <a href="/">Slides</a>
   <button id="cal-btn" class="go">Calibrate</button>
+  <button id="test-btn">Accuracy test</button>
   <button id="mouse-btn">Use the mouse instead</button>
 </header>
 <div id="status">Starting…</div>
 <div id="grid"></div>
+<div id="result" role="status"></div>
 <div id="picked">Look at a target and press Space (the stand-in for a bite).</div>
 <div id="dot" class="lost"></div>
 <div id="cal"><i></i><p id="cal-text">Look at the dot until it moves.</p></div>

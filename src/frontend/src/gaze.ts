@@ -11,9 +11,12 @@ const targets = ["Home", "Back", "Search", "Videos", "Read", "Stop"].map((name) 
 })
 
 let on: HTMLElement | null = null
+let testing = false
+let buf: Gaze[] = []
 let openNow: number | null = null
 const onGaze = ({ x, y, ok, open }: Gaze) => {
   openNow = open
+  if (testing) buf.push({ x, y, ok, open })
   dot.style.transform = `translate(${x}px, ${y}px)`
   dot.classList.toggle("lost", !ok)
   const under = ok ? targets.find((t) => { const r = t.getBoundingClientRect(); return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom }) ?? null : null
@@ -64,3 +67,39 @@ addEventListener("keydown", (e) => {
 })
 
 begin(false)
+
+/* The accuracy test: each of the six targets lights up twice, in random order, for two seconds. A target counts as hit when
+   most of the gaze samples from the second half (once the eyes have landed) fall inside it. */
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+$("test-btn").addEventListener("click", async () => {
+  if (testing) return
+  testing = true
+  const result = $("result")
+  result.style.display = "none"
+  const order = [...targets, ...targets].sort(() => Math.random() - 0.5)
+  let hits = 0
+  const errs: number[] = []
+  for (let i = 0; i < order.length; i++) {
+    const el = order[i]
+    el.classList.add("aim")
+    status.textContent = `Look at the outlined target: ${i + 1} of ${order.length}`
+    buf = []
+    await sleep(2000)
+    el.classList.remove("aim")
+    const r = el.getBoundingClientRect()
+    const late = buf.filter((g) => g.ok).slice(Math.floor(buf.length / 2))
+    if (late.length < 5) continue  // no usable samples: a miss
+    const inside = late.filter((g) => g.x >= r.left && g.x <= r.right && g.y >= r.top && g.y <= r.bottom).length / late.length
+    if (inside >= 0.6) hits++
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2
+    errs.push(late.reduce((t, g) => t + Math.hypot(g.x - cx, g.y - cy), 0) / late.length)
+  }
+  testing = false
+  const mean = errs.length ? errs.reduce((a, b) => a + b, 0) / errs.length : NaN
+  const need = Number.isFinite(mean) ? Math.ceil((2 * mean) / 10) * 10 : 0
+  const small = Math.round(Math.min(...targets.map((t) => Math.min(t.getBoundingClientRect().width, t.getBoundingClientRect().height))))
+  result.style.display = "block"
+  result.innerHTML = `<b>${hits} of ${order.length} targets hit (${Math.round((100 * hits) / order.length)}%)</b><br>` +
+    (Number.isFinite(mean) ? `Average distance from the target's centre: ${Math.round(mean)} px. Targets about ${need} px across or bigger should be reliable; these are ${small} px.` : "No usable gaze samples: calibrate, sit about an arm's length from the screen, and try again.")
+  status.textContent = "Accuracy test done."
+})
