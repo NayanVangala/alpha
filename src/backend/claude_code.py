@@ -35,6 +35,39 @@ RISKY = re.compile(
 # Playwright MCP tools (the sandboxed browser): seeing the page needs no answer; acting on it shows a card
 BROWSER = re.compile(r"^mcp__(?:plugin_playwright_)?playwright__browser_(\w+)$")
 LOOK_ONLY = {"snapshot", "take_screenshot", "wait_for", "tabs", "console_messages", "network_requests", "resize", "close"}
+# Default-deny: only these auto-run on silence. Anything else on a command line, any lookup that reaches the web, any
+# private file and anything outside the project waits for a bite. Every segment of a command must be on the list.
+SAFE_SEGMENT = re.compile(
+    r"^(?:(?:ls|pwd|cat|head|tail|wc|grep|rg|echo|which|date|diff|sort|uniq|tree|stat|file|du|basename|dirname|cd|true)(?:\s|$)"
+    r"|git\s+(?:status|diff|log|show|rev-parse|ls-files|blame)(?:\s|$)"
+    r"|git\s+branch\s*(?:-[avr]+\s*)?$"
+    r"|(?:uv\s+run\s+)?(?:python3?\s+-m\s+)?pytest(?:\s|$)"
+    r"|(?:uv\s+run\s+)?python3?\s+-m\s+(?:pytest|py_compile)(?:\s|$)"
+    r"|npm\s+(?:test|t|run\s+(?:test|build|lint|check|typecheck))(?:\s|$)"
+    r"|npx\s+tsc(?:\s|$)|node\s+--check(?:\s|$)|ruff\s+check(?:\s|$))"
+)
+# $(...), backticks, and redirects to a file can hide or write anything (2>&1 and >/dev/null are fine)
+UNSAFE_SHELL = re.compile(r"\$\(|`|(?<![\d&])>(?!&\d|\s*/dev/null)|>>")
+SECRET = re.compile(
+    r"(\.env\b|\.ssh\b|\.aws\b|\.gnupg\b|\.netrc|\.npmrc|\.pem\b|\.key\b|id_(?:rsa|ed25519)|credentials|secrets?\b|keychain)", re.I
+)
+PROTECTED = re.compile(r"(^|/)(\.claude/|\.git/|hooks\.json$)")  # an agent must not be able to switch Alpha's hooks off
+
+
+def bash_is_safe(cmd):
+    if UNSAFE_SHELL.search(cmd):
+        return False
+    segments = [seg.strip() for seg in re.split(r"&&|\|\||;|\||\n", cmd) if seg.strip()]
+    return bool(segments) and all(SAFE_SEGMENT.match(seg) for seg in segments)
+
+
+def private_or_outside(path, cwd):
+    """A secret, a hook or config file, or a path outside the project: these need a bite, even to read."""
+    if SECRET.search(path) or PROTECTED.search(path):
+        return True
+    return bool(cwd) and path.startswith("/") and not path.startswith(cwd.rstrip("/") + "/")
+
+
 NEXT_LINE = re.compile(r"^[\s*_`]*Next[\s*_`]*:\s*(.+?)\s*$", re.M | re.I)
 DONE = "I'm done"
 FIXED_NEXT = {"Keep going": "going", "Run the tests": "test"}  # always offered, unless a guess already says it
@@ -62,26 +95,28 @@ def describe(tool, inp, cwd=""):
     """(title, detail, risky) for a permission card."""
     if tool == "Bash":
         cmd = " ".join(str(inp.get("command", "")).split())
-        return "Claude wants to run", cmd, bool(RISKY.search(cmd))
+        return "Claude wants to run", cmd, bool(RISKY.search(cmd)) or not bash_is_safe(cmd) or bool(SECRET.search(cmd))
     if tool in ("Edit", "MultiEdit", "Write", "NotebookEdit"):
         path = str(inp.get("file_path") or inp.get("notebook_path") or "")
+        risky = private_or_outside(path, cwd)
         if cwd and path.startswith(cwd.rstrip("/") + "/"):
             path = os.path.relpath(path, cwd)
         if tool == "Write":
-            return "Claude wants to write", f"{path} ({lines(inp.get('content'))} lines)", False
+            return "Claude wants to write", f"{path} ({lines(inp.get('content'))} lines)", risky
         edits = inp.get("edits") or [inp]
         added = sum(lines(e.get("new_string")) for e in edits)
         removed = sum(lines(e.get("old_string")) for e in edits)
-        return "Claude wants to edit", f"{path} (+{added} −{removed})", False
+        return "Claude wants to edit", f"{path} (+{added} −{removed})", risky
     if tool in ("Read", "Glob", "Grep", "LS"):
         what = str(inp.get("file_path") or inp.get("pattern") or inp.get("path") or "")
+        risky = private_or_outside(what, cwd)
         if cwd and what.startswith(cwd.rstrip("/") + "/"):
             what = os.path.relpath(what, cwd)
-        return "Claude wants to read", what, False
+        return "Claude wants to read", what, risky
     if m := BROWSER.match(tool):
         what, element = m.group(1), str(inp.get("element") or "")
         if what == "navigate":
-            return "Claude wants to open", str(inp.get("url") or ""), False
+            return "Claude wants to open", str(inp.get("url") or ""), True  # a new site is a lookup: it waits for a bite
         if what in ("navigate_back", "hover"):
             return "Claude wants to " + ("go back" if what == "navigate_back" else "point at"), element, False
         if what == "click":
@@ -98,7 +133,7 @@ def describe(tool, inp, cwd=""):
             return "Claude wants to look at the page", "", False
         return f"Claude wants to {what.replace('_', ' ')} in the browser", json.dumps(inp)[:200], True  # scripts, uploads: Deny first
     if tool in ("WebFetch", "WebSearch"):
-        return "Claude wants to look up", str(inp.get("url") or inp.get("query") or ""), False
+        return "Claude wants to look up", str(inp.get("url") or inp.get("query") or ""), True
     return f"Claude wants to use {tool}", json.dumps(inp)[:200], True  # anything unknown: Deny lit first
 
 

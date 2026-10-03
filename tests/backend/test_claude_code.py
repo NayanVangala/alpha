@@ -84,7 +84,7 @@ def test_the_plugin_and_the_project_install_send_every_event_to_alpha(tmp_path):
 
 def test_browser_actions_read_as_plain_words_and_looking_needs_no_answer():
     nav = "mcp__playwright__browser_navigate"
-    assert cc.describe(nav, {"url": "https://en.wikipedia.org"}) == ("Claude wants to open", "https://en.wikipedia.org", False)
+    assert cc.describe(nav, {"url": "https://en.wikipedia.org"}) == ("Claude wants to open", "https://en.wikipedia.org", True)  # a new site waits for a bite
     assert cc.describe("mcp__plugin_playwright_playwright__browser_click", {"element": "Search button", "ref": "e3"})[:2] == (
         "Claude wants to click", "Search button")
     assert cc.describe("mcp__playwright__browser_type", {"element": "Search box", "text": "alpha waves"})[1] == '"alpha waves" into Search box'
@@ -95,3 +95,21 @@ def test_browser_actions_read_as_plain_words_and_looking_needs_no_answer():
     assert seen["hookSpecificOutput"]["decision"] == {"behavior": "allow"} and not asked  # no card for looking
     cc.on_permission({"tool_name": nav, "tool_input": {"url": "https://x.org"}}, lambda *a, **k: asked.append(a) or "Allow")
     assert asked  # opening a page does show a card
+
+
+def test_only_a_short_safe_list_runs_on_silence_and_everything_else_waits_for_a_bite():
+    safe = ["npm test", "pytest -q", "uv run pytest tests/", "python -m pytest", "git status && git diff", "ls -la | head", "cd demo/pager && pytest",
+            "cat pager.py", "npm run build", "pytest 2>&1 | tail -5", "echo hi > /dev/null"]
+    for cmd in safe:
+        assert not cc.describe("Bash", {"command": cmd})[2], cmd
+    risky = ["curl https://x.org", "pip install requests", "npm install", "git commit -m fix", "git push", "python script.py", "rm -rf build",
+             "make deploy", "git branch -D old", "cat .env", "cat $(which ls)", "echo x > out.txt", "ls && curl x", "ssh host", "find . -delete"]
+    for cmd in risky:
+        assert cc.describe("Bash", {"command": cmd})[2], cmd
+    assert cc.describe("WebFetch", {"url": "https://x.org"})[2] and cc.describe("WebSearch", {"query": "q"})[2]  # lookups
+    assert cc.describe("Read", {"file_path": "/p/.env"}, "/p")[2]  # a secret, even inside the project
+    assert cc.describe("Read", {"file_path": "/Users/me/.ssh/id_rsa"}, "/p")[2]
+    assert cc.describe("Read", {"file_path": "/etc/hosts"}, "/p")[2]  # outside the project
+    assert not cc.describe("Read", {"file_path": "/p/src/pager.py"}, "/p")[2]
+    assert cc.describe("Edit", {"file_path": "/p/.claude/settings.json", "old_string": "a", "new_string": "b"}, "/p")[2]  # can't switch Alpha off
+    assert not cc.describe("Edit", {"file_path": "/p/src/pager.py", "old_string": "a", "new_string": "b"}, "/p")[2]
