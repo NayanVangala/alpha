@@ -8,6 +8,7 @@
 import argparse
 import itertools
 import json
+import os
 import sqlite3
 import threading
 import time
@@ -39,6 +40,15 @@ DATA = Path("data")
 app = FastAPI()
 # only answer to our own host names, so a DNS-rebinding page can't read the log
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
+
+
+@app.middleware("http")
+async def isolate(request: Request, call_next):
+    """Cross-origin isolation: the eye-tracking SDK needs SharedArrayBuffer. `credentialless` keeps Google Fonts loading."""
+    response = await call_next(request)
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    response.headers["Cross-Origin-Embedder-Policy"] = "credentialless"
+    return response
 contacts = actions.load_contacts()
 
 
@@ -185,6 +195,20 @@ def board_page():
     if not (UI / "index.html").exists():
         return Response("Build the board first: cd src/frontend && npm install && npm run build", 503, media_type="text/plain")
     return FileResponse(UI / "index.html", headers={"Cache-Control": "no-cache"})  # a reload always gets the newest build
+
+
+@app.get("/gaze")
+def gaze_page():
+    """The eye-tracking test page: calibrate, then a gaze dot over six big targets."""
+    if not (UI / "gaze.html").exists():
+        return Response("Build the board first: cd src/frontend && npm install && npm run build", 503, media_type="text/plain")
+    return FileResponse(UI / "gaze.html", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/api/gaze/config")
+def gaze_config():
+    """The Eyedid license key from .env (start the server with --env-file .env); null means use the mouse stand-in."""
+    return {"key": os.environ.get("EYEDID_LICENSE_KEY") or None}
 
 
 app.mount("/assets", StaticFiles(directory=UI / "assets", check_dir=False), name="assets")

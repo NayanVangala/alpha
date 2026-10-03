@@ -218,3 +218,14 @@ def test_a_brake_in_force_survives_the_floating_window_closing(connected, monkey
     assert hook("PermissionRequest").content == b""  # everything else steps aside, as before
     server.board.brake_until = 0.0
     assert hook("PreToolUse").content == b""  # no brake, no window: Claude Code carries on
+
+
+def test_gaze_config_and_cross_origin_isolation(connected, monkeypatch):
+    client = connected
+    monkeypatch.delenv("EYEDID_LICENSE_KEY", raising=False)
+    assert client.get("/api/gaze/config").json() == {"key": None}  # no key: the page falls back to the mouse
+    monkeypatch.setenv("EYEDID_LICENSE_KEY", "dev_test")
+    r = client.get("/api/gaze/config")
+    assert r.json() == {"key": "dev_test"}
+    assert r.headers["Cross-Origin-Opener-Policy"] == "same-origin"  # SharedArrayBuffer needs both headers
+    assert r.headers["Cross-Origin-Embedder-Policy"] == "credentialless"
