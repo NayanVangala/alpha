@@ -90,7 +90,27 @@ export const api = {
 }
 
 /** /api/nerd: a live snapshot of the headband for Stats for nerds, or {live: false}. */
+export type Quality = {
+  overall: "strong" | "ok" | "weak" | "lost"
+  brake_ready: boolean
+  notes: string[]
+  sensors: { name: string; where: string; uv: number; status: "good" | "noisy" | "bad" | "off" }[]
+}
+export type Hist = {
+  step_s: number
+  alpha: (number | null)[]
+  spec: number[][]
+  bands: Record<string, number>[]
+  contact: number[][]
+  fs: (number | null)[]
+  hr: (number | null)[]
+  tilt: (number | null)[]
+}
 export type Nerd = {
+  quality: Quality
+  hist: Hist
+  ppg: number[]
+  gyro: number[][]
   live: boolean
   fs: number
   age_ms: number

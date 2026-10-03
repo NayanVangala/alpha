@@ -2,12 +2,8 @@ import { AnimatePresence, motion } from "motion/react"
 import { useEffect, useRef, useState } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { api, type Nerd } from "@/lib/api"
+import { BLUE, drawHeat, drawSeries, drawStrips, FAINT, INK, INK2, RULE, surface } from "@/lib/charts"
 
-const INK = "#201D1D"
-const INK2 = "#57524F"
-const RULE = "rgba(32, 29, 29, 0.12)"
-const BLUE = "#0004F6"
-const FAINT = "rgba(32, 29, 29, 0.045)"
 const BAND_HZ: Record<string, string> = { delta: "1–4", theta: "4–8", alpha: "8–13", beta: "13–30", gamma: "30–50" }
 const CH_WHERE = ["behind left ear", "left forehead", "right forehead", "behind right ear"]
 const EVENT_NAME: Record<string, string> = {
@@ -18,21 +14,6 @@ const EVENT_NAME: Record<string, string> = {
   glance_left: "Glance left",
   glance_right: "Glance right",
   eyes_closed: "Eyes closed (brake)",
-}
-
-function surface(canvas: HTMLCanvasElement): [CanvasRenderingContext2D, number, number] {
-  const dpr = devicePixelRatio || 1
-  const w = canvas.clientWidth
-  const h = canvas.clientHeight
-  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
-    canvas.width = Math.round(w * dpr)
-    canvas.height = Math.round(h * dpr)
-  }
-  const c = canvas.getContext("2d")!
-  c.setTransform(dpr, 0, 0, dpr, 0, 0)
-  c.clearRect(0, 0, w, h)
-  c.font = `12px ${getComputedStyle(document.body).fontFamily}`
-  return [c, w, h]
 }
 
 function tip(c: CanvasRenderingContext2D, w: number, x: number, y: number, lines: string[]) {
@@ -227,6 +208,14 @@ function Section({ title, note, children }: { title: string; note: string; child
   )
 }
 
+const QUALITY_TEXT = { strong: "Strong", ok: "Good enough", weak: "Weak", lost: "Lost" } as const
+const QUALITY_CLASS = { strong: "text-ultramarine", ok: "text-foreground", weak: "text-[#B3261E]", lost: "text-[#B3261E]" } as const
+const STATUS_TEXT = { good: "Good", noisy: "Noisy", bad: "Bad", off: "Not touching" } as const
+const STATUS_DOT = { good: "bg-ultramarine", noisy: "bg-[#B26A00]", bad: "bg-[#B3261E]", off: "bg-[#B9B6B3]" } as const
+const BAND_COLOR: Record<string, string> = { delta: "#B9B6B3", theta: INK2, alpha: BLUE, beta: "#7B7DFF", gamma: INK }
+const N = 120 // points in a full history
+const SPAN_S = 60
+
 /** Live numbers from the headband, drawn on canvas: raw EEG, band shares, spectrum, jaw level, events. */
 export function NerdPanel({ open }: { open: boolean }) {
   const [nerd, setNerd] = useState<Nerd | null>(null)
@@ -234,6 +223,10 @@ export function NerdPanel({ open }: { open: boolean }) {
   const bands = useRef<HTMLCanvasElement>(null)
   const spec = useRef<HTMLCanvasElement>(null)
   const jaw = useRef<HTMLCanvasElement>(null)
+  const cv = useRef<Record<string, HTMLCanvasElement | null>>({})
+  const chart = (id: string) => (el: HTMLCanvasElement | null) => {
+    cv.current[id] = el
+  }
   const hoverSpec = useRef<number | null>(null)
   const hoverBand = useRef<number | null>(null)
 
@@ -255,6 +248,26 @@ export function NerdPanel({ open }: { open: boolean }) {
     if (bands.current) drawBands(bands.current, nerd, hoverBand.current)
     if (spec.current) drawSpectrum(spec.current, nerd, hoverSpec.current)
     if (jaw.current) drawJaw(jaw.current, nerd)
+    const at = (id: string) => cv.current[id]
+    const h = nerd.hist
+    const last = (a: (number | null)[]) => Math.max(0, ...a.filter((v): v is number => v != null))
+    if (h.spec.length && at("spec")) drawHeat(at("spec")!, h.spec, { n: N, seconds: SPAN_S, bin0: 1, band: [8, 13, "alpha"] })
+    if (h.bands.length && at("bandt")) {
+      const names = Object.keys(h.bands[0])
+      const share = h.bands.map((b) => { const tot = names.reduce((t, k) => t + b[k], 0) || 1; return names.map((k) => (100 * b[k]) / tot) })
+      drawSeries(at("bandt")!, names.map((k, i) => ({ ys: share.map((r) => r[i]), color: BAND_COLOR[k] ?? INK, label: k, dash: k === "gamma" })),
+        { n: N, seconds: SPAN_S, min: 0, max: 100, unit: "% of power" })
+    }
+    if (at("alpha")) drawSeries(at("alpha")!, [{ ys: h.alpha, color: BLUE, label: "alpha vs your line", width: 2.4 }],
+      { n: N, seconds: SPAN_S, min: 0, max: Math.max(1.5, last(h.alpha) * 1.1), mark: { y: 1, label: "brake line" }, unit: "× your line" })
+    if (at("contact")) drawStrips(at("contact")!, h.contact, nerd.channels, { n: N, seconds: SPAN_S })
+    if (at("ppg")) drawSeries(at("ppg")!, [{ ys: nerd.ppg, color: BLUE, label: "pulse wave" }], { n: Math.max(2, nerd.ppg.length), seconds: 6, unit: "optical" })
+    if (at("hr")) drawSeries(at("hr")!, [{ ys: h.hr, color: INK, label: "beats per minute" }], { n: N, seconds: SPAN_S, min: 40, max: 120, unit: "bpm" })
+    if (at("gyro")) drawSeries(at("gyro")!, nerd.gyro.map((g, i) => ({ ys: g, color: [INK2, BLUE, INK][i], label: ["x", "y", "z"][i] })),
+      { n: Math.max(2, nerd.gyro[0]?.length ?? 2), seconds: 6, unit: "deg/s" })
+    if (at("tilt")) drawSeries(at("tilt")!, [{ ys: h.tilt, color: INK, label: "head tilt" }], { n: N, seconds: SPAN_S, unit: "°" })
+    if (at("fs")) drawSeries(at("fs")!, [{ ys: h.fs, color: BLUE, label: "samples per second" }],
+      { n: N, seconds: SPAN_S, min: 0, max: 300, mark: { y: 256, label: "256 expected" }, unit: "samples/s" })
   }, [nerd])
 
   const live = !!nerd?.live
@@ -267,7 +280,7 @@ export function NerdPanel({ open }: { open: boolean }) {
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 28, opacity: 0 }}
           transition={{ duration: 0.35, ease: [0.625, 0.05, 0, 1] }}
-          className="fixed inset-y-0 right-0 z-[5] grid w-[min(500px,42vw)] content-start gap-[22px] overflow-y-auto border-l bg-card px-[22px] pb-7 pt-5 max-[900px]:w-full"
+          className="fixed inset-y-0 right-0 z-[5] grid w-[min(700px,58vw)] content-start gap-[22px] overflow-y-auto border-l bg-card px-[22px] pb-7 pt-5 max-[900px]:w-full"
         >
           <header className="flex items-baseline justify-between gap-3">
             <h2 className="m-0 text-body font-semibold tracking-[-0.02em]">Stats for nerds</h2>
@@ -279,6 +292,37 @@ export function NerdPanel({ open }: { open: boolean }) {
             </p>
           ) : (
             <>
+              <section className="grid gap-3 rounded-sm bg-background p-3.5" aria-label="Signal quality">
+                <div className="flex items-baseline justify-between gap-3">
+                  <h3 className="m-0 text-label font-semibold">Connection and signal</h3>
+                  <b className={`text-title font-medium leading-none tracking-[-0.04em] ${QUALITY_CLASS[nerd!.quality.overall]}`}>
+                    {QUALITY_TEXT[nerd!.quality.overall]}
+                  </b>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {nerd!.quality.sensors.map((sn) => (
+                    <div key={sn.name} className="grid gap-1 rounded-sm bg-card px-3 py-2">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <b className="text-label font-semibold">{sn.name}</b>
+                        <span className="text-tag text-muted-foreground tabular-nums">{sn.uv} µV</span>
+                      </div>
+                      <span className="flex items-center gap-1.5 text-tag text-muted-foreground">
+                        <i className={`inline-block size-2 rounded-full ${STATUS_DOT[sn.status]}`} />
+                        {STATUS_TEXT[sn.status]} · {sn.where}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="m-0 text-label">
+                  <b className="font-semibold">Bite and brake sensors (behind the ears):</b>{" "}
+                  <span className={nerd!.quality.brake_ready ? "text-ultramarine" : "text-[#B3261E]"}>{nerd!.quality.brake_ready ? "ready" : "not ready"}</span>
+                </p>
+                {nerd!.quality.notes.length > 0 && (
+                  <ul className="m-0 grid list-disc gap-0.5 pl-[18px] text-label text-muted-foreground">
+                    {nerd!.quality.notes.map((t) => <li key={t}>{t}</li>)}
+                  </ul>
+                )}
+              </section>
               <div className="grid grid-cols-3 gap-2">
                 {(
                   [
@@ -298,6 +342,17 @@ export function NerdPanel({ open }: { open: boolean }) {
               </div>
               <Section title="Raw EEG" note="last 2 s, microvolts">
                 <canvas ref={raw} className="block h-44 w-full" role="img" aria-label="Raw EEG, four channels" />
+              </Section>
+              <Section title="Brainwaves over time" note="spectrogram, behind the ears, last 60 s">
+                <canvas ref={chart("spec")} className="block h-[210px] w-full" role="img" aria-label="Spectrogram: frequency against time" />
+                <p className="m-0 mt-1.5 text-label text-muted-foreground">Brighter is stronger. Close your eyes for 10 seconds and the dashed alpha band (8–13 Hz) lights up.</p>
+              </Section>
+              <Section title="Band share over time" note="how the five bands trade off, last 60 s">
+                <canvas ref={chart("bandt")} className="block h-[170px] w-full" role="img" aria-label="Band share over time" />
+              </Section>
+              <Section title="Alpha against your brake line" note="the brain brake, last 60 s">
+                <canvas ref={chart("alpha")} className="block h-[150px] w-full" role="img" aria-label="Alpha level against the brake line" />
+                <p className="m-0 mt-1.5 text-label text-muted-foreground">Stay above the dashed line for about 1.5 seconds and Alpha applies the brake.</p>
               </Section>
               <Section title="Brainwave bands" note="share of 1–50 Hz power, behind the ears">
                 <canvas
@@ -352,6 +407,20 @@ export function NerdPanel({ open }: { open: boolean }) {
               <Section title="Jaw muscle" note="above 30 Hz, last 30 s">
                 <canvas ref={jaw} className="block h-[120px] w-full" role="img" aria-label="Jaw muscle level against the bite threshold" />
                 <p className="m-0 mt-1.5 text-label text-muted-foreground">Dashed line: this wearer's bite threshold. Squares: bites picked up.</p>
+              </Section>
+              <Section title="Sensor contact over time" note="each sensor, last 60 s">
+                <canvas ref={chart("contact")} className="block h-[120px] w-full" role="img" aria-label="Sensor contact over time" />
+              </Section>
+              <Section title="Pulse" note="optical heart sensor">
+                <canvas ref={chart("ppg")} className="block h-[110px] w-full" role="img" aria-label="Pulse wave, last 6 seconds" />
+                <canvas ref={chart("hr")} className="mt-2 block h-[110px] w-full" role="img" aria-label="Heart rate over the last minute" />
+              </Section>
+              <Section title="Head motion" note="gyroscope and tilt">
+                <canvas ref={chart("gyro")} className="block h-[130px] w-full" role="img" aria-label="Head rotation rates, last 6 seconds" />
+                <canvas ref={chart("tilt")} className="mt-2 block h-[110px] w-full" role="img" aria-label="Head tilt over the last minute" />
+              </Section>
+              <Section title="Stream health" note="samples per second reaching the computer">
+                <canvas ref={chart("fs")} className="block h-[120px] w-full" role="img" aria-label="Samples per second over the last minute" />
               </Section>
               <Section title="Events" note="last 30 s">
                 <ul className="m-0 grid list-none gap-0.5 p-0 text-label text-muted-foreground">

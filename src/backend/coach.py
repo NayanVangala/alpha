@@ -14,6 +14,7 @@ from .gestures import Gestures
 from .signals import (
     CHANNELS,
     EEG_FS,
+    IMU_FS,
     PPG_FS,
     BlinkDetector,
     ClenchDetector,
@@ -24,6 +25,7 @@ from .signals import (
     band_rms,
     contact,
     heart_rate,
+    signal_quality,
     spectrum,
 )
 
@@ -39,6 +41,8 @@ OFF_S = 3  # every sensor off the skin this long = the headband has been taken o
 RECONNECT_EVERY_S = 15
 APP_REFRESH_S = 1
 NERD_WINDOW_S = 30  # how far back the Stats for nerds charts reach
+HIST_EVERY_S = 0.5  # the slow charts (spectrogram, bands, alpha, contact, pulse, head) gain a point this often
+HIST_N = 120  # ...and keep this many: 60 s
 
 # Everything a live demo wants shorter; --demo swaps in DEMO_TIMING.
 TIMING = {
@@ -99,6 +103,9 @@ class Coach:
         self.nerd = None  # latest Stats for nerds snapshot
         self.muscle, self.events, self.fs_log = deque(), deque(), deque()
         self.ppg = deque(maxlen=12 * PPG_FS)
+        self.hist_at = 0.0
+        self.hist = {k: deque(maxlen=HIST_N) for k in ("alpha", "spec", "bands", "contact", "fs", "hr", "tilt")}
+        self.gyro_tail = deque(maxlen=6 * IMU_FS)
         now = clock()
         self.cooldown = {"break": now}
         self.last_data = self.last_reconnect = now
@@ -272,6 +279,8 @@ class Coach:
         self.state["live"] = True
         self.eeg_tail.extend(eeg.T)
         gyro = d.get("gyro")
+        if gyro is not None and gyro.shape[1]:
+            self.gyro_tail.extend(gyro.T)
         if self.head and gyro is not None and gyro.shape[1] and self.on_gesture and not self.state["calibrating"]:
             for kind in self.head.feed(gyro):
                 self.on_gesture(kind, 0.0)
@@ -353,9 +362,26 @@ class Coach:
         self.muscle.append((now, float(np.sqrt(np.mean(np.square(level[-EEG_FS // 4 :]))))))
         freqs, psd = spectrum(eeg)
         keep = (freqs >= 1) & (freqs <= 60)
+        fs_now = round(sum(n for _, n in list(self.fs_log)[1:]) / span, 1) if span else None
+        contact_uv = np.round(band_rms(eeg[:, -EEG_FS:]), 1).tolist()
+        if now - self.hist_at >= HIST_EVERY_S:
+            self.hist_at = now
+            ears = psd[[0, 3]].mean(axis=0)  # behind the ears, where the detectors read
+            h = self.hist
+            h["spec"].append([round(float(np.log10(ears[(freqs >= f) & (freqs < f + 1)].mean() + 1e-9)), 1) for f in range(1, 46)])
+            h["bands"].append({k: round(float((v[0] + v[3]) / 2), 1) for k, v in band_powers(freqs, psd).items()})
+            h["alpha"].append(self.state["alpha"])
+            h["contact"].append(contact_uv)
+            h["fs"].append(fs_now)
+            h["hr"].append(self.state["hr"])
+            h["tilt"].append(self.state["tilt"])
+        ppg = np.array(self.ppg)[-6 * PPG_FS :, 1] if len(self.ppg) > PPG_FS else np.empty(0)
+        if ppg.size:  # the pulse wave: drop the slow drift so the beats show
+            ppg = ppg - np.convolve(ppg, np.ones(PPG_FS // 2) / (PPG_FS // 2), "same")
+        gyro = np.array(self.gyro_tail).T if self.gyro_tail else np.empty((3, 0))
         self.nerd = {
             "live": True,
-            "fs": round(sum(n for _, n in list(self.fs_log)[1:]) / span, 1) if span else None,
+            "fs": fs_now,
             "age_ms": round((now - self.last_data) * 1000),
             "channels": ["TP9", "AF7", "AF8", "TP10"],
             "raw": [np.round(ch[::2], 1).tolist() for ch in eeg[:, -2 * EEG_FS :]],  # last 2 s, every other sample
@@ -367,7 +393,11 @@ class Coach:
             "threshold": round(self.gestures.clench.threshold_uv, 1),
             "events": [[round(t - now, 2), k] for t, k in self.events],
             "window_s": NERD_WINDOW_S,
-            "contact_uv": np.round(band_rms(eeg[:, -EEG_FS:]), 1).tolist(),
+            "contact_uv": contact_uv,
+            "quality": signal_quality(contact_uv, fs_now, round((now - self.last_data) * 1000), True),
+            "hist": {"step_s": HIST_EVERY_S, **{k: list(v) for k, v in self.hist.items()}},
+            "ppg": np.round(ppg[::2], 1).tolist(),
+            "gyro": [np.round(g[::2], 1).tolist() for g in gyro],
             "tilt": self.state["tilt"],
             "hr": self.state["hr"],
             "blink_rate": self.state["blink_rate"],

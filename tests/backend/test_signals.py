@@ -238,3 +238,17 @@ def test_a_nod_and_a_shake_are_told_apart_and_ordinary_motion_fires_nothing():
     assert NodShakeDetector(1, 2).feed(_swing(1, amp=15)) == []  # too gentle: drift, or a bite's jolt
     assert NodShakeDetector(1, 2).feed(_swing(1, seconds=0.25, hz=1.0)) == []  # one swing, not there-and-back
     assert d.feed(_swing(1)) == []  # refractory: one answer per movement
+
+
+def test_signal_quality_calls_the_connection_strong_ok_weak_or_lost():
+    from src.backend.signals import signal_quality
+
+    good = [30.0, 40.0, 45.0, 35.0]
+    assert signal_quality(good, 256, 100, True)["overall"] == "strong"
+    q = signal_quality([40.0, 211.0, 45.0, 35.0], 256, 100, True)  # a loose forehead: the ear sensors still read
+    assert q["overall"] == "ok" and q["brake_ready"] and "left forehead" in q["notes"][0].lower()
+    q = signal_quality([40.0, 40.0, 40.0, 0.2], 256, 100, True)  # a flat right ear: the bite and brake can't be trusted
+    assert q["overall"] == "weak" and not q["brake_ready"] and "behind right ear" in q["notes"][0].lower()
+    assert signal_quality(good, 150, 100, True)["overall"] == "weak"  # packets are dropping
+    assert signal_quality(good, 256, 5000, True)["overall"] == "lost"
+    assert signal_quality(good, 256, 100, False)["overall"] == "lost"

@@ -450,3 +450,44 @@ class NodShakeDetector:
                 self.buf = np.empty((3, 0))
                 return [kind]
         return []
+
+
+SENSOR_NAMES = ["TP9", "AF7", "AF8", "TP10"]
+SENSOR_WHERE = list(CHANNELS)  # behind left ear, left forehead, right forehead, behind right ear
+SENSOR_TIPS = {
+    "off": "reads flat: not touching skin. Seat the band and dab it with a little water.",
+    "noisy": "is noisy: wet it a little, move hair aside, and keep still.",
+    "bad": "is very noisy: it's loose or dry. Re-seat the band, and dab it with a little water.",
+}
+
+
+def sensor_status(uv):
+    """off (flat), good, noisy or bad, from a sensor's 1-30 Hz RMS in microvolts."""
+    if uv < CONTACT_UV[0]:
+        return "off"
+    return "good" if uv <= 100 else "noisy" if uv <= CONTACT_UV[1] else "bad"
+
+
+def signal_quality(contact_uv, fs, age_ms, live):
+    """How strong the connection is: overall strong / ok / weak / lost, each sensor, and what to try.
+
+    The bite and eyes-closed detectors read only the sensors behind the ears (TP9, TP10), so those two decide
+    `ok`; `strong` also wants clean foreheads and a full-rate stream.
+    """
+    if not live or age_ms is None or age_ms > 2000:
+        return {"overall": "lost", "sensors": [], "brake_ready": False, "notes": ["The headband isn't sending data."]}
+    status = [sensor_status(v) for v in contact_uv]
+    ears = status[0] == "good" and status[3] == "good"
+    if all(st == "good" for st in status) and fs is not None and fs >= 240 and age_ms < 600:
+        overall = "strong"
+    elif ears and (fs is None or fs >= 200):
+        overall = "ok"
+    else:
+        overall = "weak"
+    notes = [f"{SENSOR_WHERE[i].capitalize()} {SENSOR_TIPS[st]}" for i, st in enumerate(status) if st != "good"]
+    if fs is not None and fs < 200:
+        notes.append(f"Only {fs:.0f} samples per second are arriving (256 expected): move the headband closer to the computer.")
+    return {"overall": overall, "brake_ready": ears,
+            "sensors": [{"name": n, "where": w, "uv": round(float(v), 1), "status": st}
+                        for n, w, v, st in zip(SENSOR_NAMES, SENSOR_WHERE, contact_uv, status)],
+            "notes": notes}
