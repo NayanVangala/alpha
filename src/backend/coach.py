@@ -31,6 +31,8 @@ from .signals import (
 )
 
 TICK_S = 0.25
+PERSONAL = Path("data/personal.json")  # per-wearer detector constants measured by scripts/train_personal.py
+TUNABLE = {"FRAC", "K", "FLOOR", "RISE", "MIN_THRESHOLD", "MAX_THRESHOLD"}
 HEAD_AXES = Path("data/head_axes.json")  # {"nod": axis, "shake": axis}, measured by scripts/check_nod.py
 CALIBRATE_S = 20
 NOISY_REST_FRAC = 0.05  # more of the still 20 s than this over the bite line = noisy contact or a tense jaw
@@ -186,6 +188,11 @@ class Coach:
         accel = np.concatenate([np.empty((3, 0))] + [c["accel"] for c in chunks], axis=1)
 
         blinks, clench, posture, eyes = BlinkDetector(), ClenchDetector(), PostureTracker(), EyesClosedDetector()
+        mine = json.loads(PERSONAL.read_text()) if PERSONAL.exists() else {}
+        for det, name in ((blinks, "blink"), (clench, "clench"), (eyes, "eyes")):
+            for attr, value in mine.get(name, {}).items():
+                if attr in TUNABLE:
+                    setattr(det, attr, float(value))
         enough = eeg.shape[1] >= 0.8 * seconds * EEG_FS
         if not enough:
             note = "Barely got data from the headband, so default settings are in use. Check it's on and connected, then recalibrate."

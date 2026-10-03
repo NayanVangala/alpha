@@ -154,3 +154,19 @@ def test_the_board_hears_once_when_the_headband_goes_quiet_or_comes_off(tmp_path
     c._presence(clock(), True)
     c._presence(clock() + 3.1, True)
     assert told[-1] == "Headband taken off"
+
+
+def test_personal_constants_change_the_calibrated_lines(tmp_path, monkeypatch):
+    import json
+
+    from src.backend import coach as coach_mod
+
+    plain, clock, band, _ = make(tmp_path)
+    plain.calibrate()
+    mine = tmp_path / "personal.json"
+    mine.write_text(json.dumps({"clench": {"K": 6.0, "FLOOR": 5.0}, "eyes": {"MIN_THRESHOLD": 0.05, "RISE": 1.1}, "evil": {"x": 1}}))
+    monkeypatch.setattr(coach_mod, "PERSONAL", mine)
+    c, clock, band, _ = make(tmp_path)
+    c.calibrate()
+    assert c.clench.threshold_uv > plain.clench.threshold_uv  # a higher K raised the bite line
+    assert c.eyes_threshold < plain.eyes_threshold  # a lower floor and RISE lowered the eyes-closed line

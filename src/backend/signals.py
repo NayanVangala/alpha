@@ -46,6 +46,7 @@ class BlinkDetector:
     """
 
     REFRACTORY_S = 0.3
+    FRAC = 0.5  # the line is this fraction of the wearer's typical blink height (scripts/train_personal.py can tune it)
 
     def __init__(self, threshold_uv=90.0, sign=1, fs=EEG_FS):
         self.threshold_uv = threshold_uv
@@ -74,7 +75,7 @@ class BlinkDetector:
             if len(heights) >= 3 and (best is None or np.median(heights) > best[1]):
                 best = (sign, float(np.median(heights)))
         if best:
-            self.sign, self.threshold_uv = best[0], 0.5 * best[1]
+            self.sign, self.threshold_uv = best[0], self.FRAC * best[1]
         return best is not None
 
     def feed(self, af7, af8):
@@ -213,6 +214,7 @@ class EyesClosedDetector:
     # median of the last four updates (about a second) is what's compared; 1.7x the eyes-open share caught both
     # closures and nothing during reading, talking, head turns or bites
     RISE = 1.7
+    MIN_THRESHOLD, MAX_THRESHOLD = 0.3, 0.8  # sane bounds on the line; a low-alpha wearer may need a lower floor
     SMOOTH = 4
     DEFAULT = 0.45  # until calibrated
 
@@ -246,7 +248,7 @@ class EyesClosedDetector:
         shares = [self.share(tp[:, i : i + n]) for i in range(0, tp.shape[1] - n + 1, n // 4)]
         if len(shares) < 20:
             return False
-        self.threshold = min(0.8, max(0.3, self.RISE * float(np.median(shares))))
+        self.threshold = min(self.MAX_THRESHOLD, max(self.MIN_THRESHOLD, self.RISE * float(np.median(shares))))
         return True
 
     def feed(self, eeg):
@@ -278,6 +280,8 @@ class ClenchDetector:
     channels, so one loose, noisy electrode can't fake a bite. The forehead pair is left out: on a real Muse
     its contact noise ran 100-200 uV and buried bites that lifted the ear channels from 4 to 30-60 uV.
     """
+
+    K, FLOOR = 3.0, 15.0  # the bite line: K x the typical relaxed window level, never below FLOOR microvolts
 
     def __init__(self, threshold_uv=40.0, min_s=1.0, fs=EEG_FS):
         self.threshold_uv = threshold_uv
@@ -319,7 +323,7 @@ class ClenchDetector:
         level, _ = self._muscle(eeg)
         # 3x: on two real sessions every bite and hold cleared it with margin, and nothing else did
         windows = self._windows(level)
-        self.threshold_uv = max(15.0, 3 * float(np.median(windows)))
+        self.threshold_uv = max(self.FLOOR, self.K * float(np.median(windows)))
         self.rest_burst_frac = float(np.mean(windows > self.threshold_uv))  # 0.00 on clean sessions, 0.16 on a loose, tense one
         return True
 
