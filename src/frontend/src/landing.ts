@@ -172,7 +172,7 @@ $("bite").addEventListener("click", () => { if (!demo.decided) decide("muscle", 
 
 /* ---------- scroll: Lenis for the smoothing, one GSAP timeline for every transition ---------- */
 const SCENES = slides.length
-const UNIT = () => innerHeight * 1.5  // scroll distance of one scene
+const UNIT = () => innerHeight * 1.9  // scroll distance of one scene
 const sceneTitle = $("sec"), count = $("count")
 const bar = $("progress")
 const dots = slides.map((_, i) => {
@@ -184,7 +184,7 @@ const dots = slides.map((_, i) => {
 })
 let lenis: Lenis | null = null
 const toScene = (i: number) => {
-  const y = i === 0 ? 0 : (Math.min(SCENES - 1, Math.max(0, i)) + 0.5) * UNIT()
+  const y = i === 0 ? 0 : (Math.min(SCENES - 1, Math.max(0, i)) + 0.3) * UNIT()
   if (lenis) lenis.scrollTo(y, { duration: 1.4 })
   else slides[i].scrollIntoView({ behavior: "smooth" })
 }
@@ -200,18 +200,34 @@ function setActive(i: number) {
   history.replaceState(null, "", `#${i + 1}`)
 }
 
-// How each scene leaves and how the next one arrives. Boundary i is between scene i and scene i + 1.
-const FLOW: { out: "zoom" | "explode" | "shift"; in: "zoom" | "iris" | "shift" | "flood" }[] = [
-  { out: "explode", in: "zoom" },
-  { out: "zoom", in: "iris" },
-  { out: "shift", in: "shift" },
-  { out: "zoom", in: "zoom" },
-  { out: "shift", in: "flood" },
-  { out: "zoom", in: "shift" },
-  { out: "explode", in: "zoom" },
-  { out: "zoom", in: "iris" },
-]
+const COLORS = ["#9BFF60", "#CDCCFF", "#7B7DFF", "#FFFFFF", "#FFD166", "#FF7AA2", "#5EE6FF"]
 const PARTS = ".w, .card, .node, .stats > div, .steps4 li, .road li, .rules li, .panel, .term, .lead, .body, .who, .tag, .micro, .credits"
+const box = (el: Element) => { const r = el.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height, cx: r.left + r.width / 2, cy: r.top + r.height / 2 } }
+const fs = (el: Element) => parseFloat(getComputedStyle(el).fontSize)
+
+// the pixel dissolve between the demo and the diagram, scrubbed by the scroll
+const cells = { cols: 0, rows: 0, size: 0, delay: [] as number[] }
+const dissolve = { p: 0 }
+function layoutCells() {
+  cells.size = Math.ceil(innerWidth / 30)
+  cells.cols = Math.ceil(innerWidth / cells.size)
+  cells.rows = Math.ceil(innerHeight / cells.size)
+  cells.delay = Array.from({ length: cells.cols * cells.rows }, () => Math.random() * 0.65)
+}
+function drawCells() {
+  const cv = $<HTMLCanvasElement>("wipe")
+  if (cv.width !== innerWidth || cv.height !== innerHeight) { cv.width = innerWidth; cv.height = innerHeight }
+  const c = cv.getContext("2d")!
+  c.clearRect(0, 0, cv.width, cv.height)
+  if (dissolve.p <= 0) return
+  c.fillStyle = BLUE
+  cells.delay.forEach((d, i) => {
+    const s = Math.min(1, Math.max(0, (dissolve.p - d) / 0.35))
+    if (s <= 0) return
+    const size = cells.size * s
+    c.fillRect((i % cells.cols) * cells.size + (cells.size - size) / 2, Math.floor(i / cells.cols) * cells.size + (cells.size - size) / 2, size + 0.5, size + 0.5)
+  })
+}
 
 function build() {
   gsap.registerPlugin(ScrollTrigger)
@@ -219,40 +235,122 @@ function build() {
   scroller.style.height = `${SCENES * UNIT() + innerHeight}px`
   gsap.set(slides, { zIndex: (i: number) => i + 1 })
   gsap.set(slides.slice(1), { autoAlpha: 0 })
+  layoutCells()
+
+  // the terminal's last line: the next slide's title, typed in colourful letters
+  const typed = slides[1].querySelector<HTMLElement>(".typed")!
+  const title = slides[2].querySelector("h2")!.getAttribute("aria-label") ?? ""
+  typed.innerHTML = `<span class="pr">$</span><span class="tl">${[...title].map((ch, i) => `<span class="ch" style="color:${COLORS[i % COLORS.length]}">${ch === " " ? "&nbsp;" : ch}</span>`).join("")}</span>`
+  const chars = gsap.utils.toArray<HTMLElement>(typed.querySelectorAll(".ch"))
+
+  // the full stop that ends the title: a white square stands in for it, then grows to fill the screen
+  const h1 = slides[0].querySelector<HTMLElement>("h1")!
+  const period = [...h1.querySelectorAll<HTMLElement>(".c")].pop()!
+  const dot = Object.assign(document.createElement("i"), { className: "dotzoom" })
+  slides[0].append(dot)
+
+  // measure everything with its entrance at rest
+  document.body.classList.add("measuring")
+  const pr = box(period), dsz = 0.17 * fs(h1)
+  const tl_ = box(typed.querySelector(".tl")!), hr = box(slides[2].querySelector("h2")!), term = slides[1].querySelector<HTMLElement>(".term")!, trm = box(term)
+  const zoomTerm = fs(slides[2].querySelector("h2")!) / fs(typed)
+  const blue = slides[4].querySelector<HTMLElement>(".node.blue")!, bb = box(blue)
+  const card = slides[7].querySelectorAll<HTMLElement>(".road li")[4], cb = box(card)
+  document.body.classList.remove("measuring")
+  Object.assign(dot.style, { width: `${dsz}px`, height: `${dsz}px`, left: `${pr.left + pr.width * 0.5 - dsz / 2}px`, top: `${pr.top + pr.height * 0.78 - dsz / 2}px` })
+
   const tl = gsap.timeline({ defaults: { ease: "power2.inOut" }, scrollTrigger: {
     trigger: scroller, start: "top top", end: "bottom bottom", scrub: 0.7, invalidateOnRefresh: true,
     onUpdate: (self) => {
-      const p = self.progress * SCENES  // scene units: scene i holds from i + 0.2 to i + 0.8
-      setActive(Math.min(SCENES - 1, Math.max(0, Math.floor(p + 0.2))))
+      const p = self.progress * SCENES  // scene s is on screen from s + 0.1 until its own boundary swaps it out
+      setActive(Math.min(SCENES - 1, Math.max(0, Math.floor(p - 0.05))))
       showing.clear()
       slides.forEach((sl) => {
         const cv = sl.querySelector<HTMLCanvasElement>("canvas.dither")
-        if (cv && Number(gsap.getProperty(sl, "opacity")) > 0.02) showing.add(cv)
+        if (cv && Number(gsap.getProperty(sl, "opacity")) > 0.02 && gsap.getProperty(sl, "visibility") !== "hidden") showing.add(cv)
       })
     },
   } })
   tl.to({}, { duration: SCENES }, 0)  // the timeline spans SCENES scene units
-  tl.fromTo(slides[0].querySelector("h1"), { scale: 1 }, { scale: 1.12, duration: 0.8, ease: "none" }, 0)
-  FLOW.forEach((f, i) => {
-    const t0 = i + 0.8, d = 0.4
-    const from = slides[i], to = slides[i + 1]
-    if (f.out === "zoom") tl.to(from, { scale: 1.7, autoAlpha: 0, duration: d, ease: "power2.in" }, t0)
-    if (f.out === "shift") tl.to(from, { xPercent: -22, scale: 0.88, autoAlpha: 0, duration: d, ease: "power2.in" }, t0)
-    if (f.out === "explode") {  // everything flies apart, then the scene is gone
-      const parts = gsap.utils.toArray<HTMLElement>(from.querySelectorAll(PARTS))
-      tl.to(parts, { x: () => gsap.utils.random(-900, 900), y: () => gsap.utils.random(-600, 600), rotation: () => gsap.utils.random(-140, 140),
-        scale: () => gsap.utils.random(0.4, 2.2), autoAlpha: 0, duration: d, ease: "power3.in", stagger: { amount: 0.1, from: "center" } }, t0)
-      tl.to(from, { autoAlpha: 0, scale: 1.25, duration: 0.12, ease: "none" }, t0 + d - 0.12)
-    }
-    if (f.in === "zoom") tl.fromTo(to, { scale: 0.55, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: d, ease: "power3.out" }, t0)
-    if (f.in === "shift") tl.fromTo(to, { xPercent: 22, scale: 0.92, autoAlpha: 0 }, { xPercent: 0, scale: 1, autoAlpha: 1, duration: d, ease: "power3.out" }, t0)
-    if (f.in === "iris" || f.in === "flood") {  // a circle of the next scene opens over the last one
-      const at = f.in === "iris" ? "50% 50%" : "100% 100%"
-      tl.fromTo(to, { autoAlpha: 1, clipPath: `circle(0% at ${at})` }, { clipPath: `circle(150% at ${at})`, duration: d, ease: "power2.inOut" }, t0)
-      tl.fromTo(to.querySelector(".inner"), { scale: 1.25 }, { scale: 1, duration: d, ease: "power2.out" }, t0)
-    }
-    // whatever was thrown about comes back to rest when scrubbing backwards past it: the tweens are reversible
-  })
+  tl.fromTo(h1, { scale: 1 }, { scale: 1.1, duration: 0.55, ease: "none" }, 0)
+
+  // 0 -> 1: the full stop grows until it is the screen, and the screen is the problem slide's light page
+  {
+    const t = 0.55
+    tl.set(dot, { visibility: "visible" }, t).set(period, { visibility: "hidden" }, t)
+    tl.to(h1, { scale: 1.5, autoAlpha: 0, duration: 0.3, ease: "power2.in" }, t)
+    tl.to(slides[0].querySelectorAll(".micro, .lead, .hint, canvas.dither"), { autoAlpha: 0, duration: 0.25 }, t)
+    tl.to(dot, { x: innerWidth / 2 - (pr.left + pr.width * 0.5), y: innerHeight / 2 - (pr.top + pr.height * 0.78), scale: (Math.max(innerWidth, innerHeight) * 1.5) / dsz, duration: 0.55, ease: "power3.in" }, t)
+    tl.fromTo(slides[1], { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.15, ease: "none" }, t + 0.5)
+    tl.set(slides[0], { autoAlpha: 0 }, t + 0.66)
+  }
+
+  // 1 -> 2: the terminal types the next title, then we zoom into the terminal and it becomes the slide
+  {
+    const t = 1.45
+    tl.fromTo(slides[1].querySelector(".typed .pr"), { opacity: 0 }, { opacity: 1, duration: 0.05, ease: "none" }, t)
+    tl.fromTo(chars, { opacity: 0 }, { opacity: 1, duration: 0.01, ease: "none", stagger: 0.3 / chars.length }, t + 0.05)
+    tl.set(term, { transformOrigin: `${tl_.left - trm.left}px ${tl_.top - trm.top}px` }, t)
+    tl.to(slides[1].querySelector(".cols > div:first-child"), { autoAlpha: 0, x: -80, duration: 0.25 }, t + 0.35)
+    tl.to(term, { scale: zoomTerm, x: hr.left - tl_.left, y: hr.top - tl_.top, duration: 0.55, ease: "power3.inOut" }, t + 0.4)
+    tl.to(term.querySelectorAll("p:not(.typed)"), { autoAlpha: 0, duration: 0.2 }, t + 0.55)
+    tl.fromTo(slides[2], { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.18, ease: "none" }, t + 0.82)
+    tl.set(slides[1], { autoAlpha: 0 }, t + 1.0)
+  }
+
+  // 2 -> 3: eyelids close on the "close your eyes" slide, and open on the brake demo
+  {
+    const t = 2.55
+    tl.to("#lidTop", { yPercent: 0, y: 0, duration: 0.22, ease: "power2.in" }, t).to("#lidBottom", { yPercent: 0, y: 0, duration: 0.22, ease: "power2.in" }, t)
+    tl.set(slides[2], { autoAlpha: 0 }, t + 0.24).set(slides[3], { autoAlpha: 1 }, t + 0.24)
+    tl.to("#lidTop", { yPercent: -104, duration: 0.3, ease: "power2.out" }, t + 0.3).to("#lidBottom", { yPercent: 104, duration: 0.3, ease: "power2.out" }, t + 0.3)
+  }
+
+  // 3 -> 4: the demo freezes and breaks into blue pixels, which clear to show the diagram
+  {
+    const t = 3.55
+    tl.to(dissolve, { p: 1, duration: 0.3, ease: "none", onUpdate: drawCells }, t)
+    tl.set(slides[3], { autoAlpha: 0 }, t + 0.31).set(slides[4], { autoAlpha: 1 }, t + 0.31)
+    tl.to(dissolve, { p: 0, duration: 0.3, ease: "none", onUpdate: drawCells }, t + 0.34)
+  }
+
+  // 4 -> 5: zoom into the blue box (rein, on your computer) until blue is the whole screen: the impact slide
+  {
+    const t = 4.55
+    tl.to(slides[4].querySelectorAll(".node:not(.blue), .arrow, .rules, h2, .tag"), { autoAlpha: 0, duration: 0.25 }, t)
+    tl.to(blue, { x: innerWidth / 2 - bb.cx, y: innerHeight / 2 - bb.cy, scale: Math.max(innerWidth / bb.width, innerHeight / bb.height) * 1.2, duration: 0.55, ease: "power3.inOut" }, t + 0.1)
+    tl.to(blue.children, { autoAlpha: 0, duration: 0.2 }, t + 0.35)
+    tl.fromTo(slides[5], { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.12, ease: "none" }, t + 0.6)
+    tl.set(slides[4], { autoAlpha: 0 }, t + 0.74)
+  }
+
+  // 5 -> 6: the impact slide lifts away like a curtain and the how-to is already there
+  {
+    const t = 5.6
+    tl.set(slides[6], { autoAlpha: 1, zIndex: 5 }, t)
+    tl.fromTo(slides[6], { yPercent: 14, scale: 0.96 }, { yPercent: 0, scale: 1, duration: 0.55, ease: "power2.out" }, t)
+    tl.to(slides[5], { yPercent: -100, duration: 0.55, ease: "power3.inOut" }, t)
+    tl.set(slides[5], { autoAlpha: 0, yPercent: 0 }, t + 0.56).set(slides[6], { zIndex: 7 }, t + 0.56)
+  }
+
+  // 6 -> 7: the four steps burst apart and the roadmap is behind them
+  {
+    const t = 6.55
+    tl.set(slides[7], { autoAlpha: 1, zIndex: 6 }, t)
+    tl.to(gsap.utils.toArray<HTMLElement>(slides[6].querySelectorAll(PARTS)), { x: () => gsap.utils.random(-1000, 1000), y: () => gsap.utils.random(-700, 700), rotation: () => gsap.utils.random(-160, 160),
+      scale: () => gsap.utils.random(0.4, 2.4), autoAlpha: 0, duration: 0.5, ease: "power3.in", stagger: { amount: 0.1, from: "center" } }, t)
+    tl.set(slides[6], { autoAlpha: 0 }, t + 0.62).set(slides[7], { zIndex: 8 }, t + 0.62)
+  }
+
+  // 7 -> 8: zoom into the last roadmap card, "Real users", and it opens onto the close
+  {
+    const t = 7.55
+    tl.to(slides[7].querySelectorAll(".road li:not(:nth-child(5)), h2, .tag"), { autoAlpha: 0, duration: 0.25 }, t)
+    tl.to(card, { x: innerWidth / 2 - cb.cx, y: innerHeight / 2 - cb.cy, scale: Math.max(innerWidth / cb.width, innerHeight / cb.height) * 1.25, duration: 0.55, ease: "power3.inOut" }, t + 0.1)
+    tl.to(card.children, { autoAlpha: 0, duration: 0.2 }, t + 0.4)
+    tl.fromTo(slides[8], { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.18, ease: "none" }, t + 0.55)
+    tl.set(slides[7], { autoAlpha: 0 }, t + 0.74)
+  }
   return tl
 }
 

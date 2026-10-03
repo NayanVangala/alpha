@@ -210,3 +210,16 @@ h3 { font-weight: 500; font-size: clamp(1.4rem, 1.9vw, 1.9rem); letter-spacing: 
 body.plain #deck { position: static; }
 body.plain .slide, body.plain .slide:not(:first-child) { position: relative; visibility: visible; min-height: 100vh; opacity: 1; pointer-events: auto; }
 body.plain #scroller, body.plain .progress { display: none; }
+
+/* transitions where one thing becomes the next */
+.typed { display: block; margin-top: 14px; line-height: 1; font-family: var(--font); font-weight: 500; letter-spacing: -0.05em; font-size: clamp(1.15rem, 1.8vw, 1.7rem); white-space: nowrap; }
+.typed .pr { color: #8a8aa0; font-family: var(--mono); font-weight: 400; letter-spacing: 0; margin-right: 0.5em; opacity: 0; }
+.typed .ch { opacity: 0; }
+.term { transform-box: border-box; }
+.lid { position: fixed; left: -6vw; right: -6vw; height: 54vh; background: #000; z-index: 38; pointer-events: none; will-change: transform; }
+.lid.top { top: 0; border-radius: 0 0 50% 50% / 0 0 22vh 22vh; transform: translateY(-104%); }
+.lid.bottom { bottom: 0; border-radius: 50% 50% 0 0 / 22vh 22vh 0 0; transform: translateY(104%); }
+.dotzoom { position: absolute; z-index: 5; background: #fff; border-radius: 22%; visibility: hidden; will-change: transform; }
+.node.blue, .road li { will-change: transform; }
+.node.blue { position: relative; z-index: 6; }
+body.measuring .rise, body.measuring .roll .c { translate: 0 0 !important; opacity: 1 !important; animation: none !important; filter: none !important; }
