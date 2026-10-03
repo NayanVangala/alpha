@@ -42,3 +42,8 @@ def suggestions(db, now=None, top=TOP):
          "phrase": s, "exact": True, **({} if a == "speak" else {"action": a, "to": to})}
         for s, a, to in ranked
     ]
+
+
+def voice(db, n=12):
+    """The wearer's own recent sentences, newest first: how they talk, for the AI to match (their words, never their facts)."""
+    return [s for (s,) in db.execute("SELECT sentence FROM said WHERE action = 'speak' GROUP BY sentence ORDER BY MAX(ts) DESC LIMIT ?", (n,))]

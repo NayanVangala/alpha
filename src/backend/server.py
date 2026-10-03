@@ -27,7 +27,7 @@ from . import actions, routines
 from . import claude_code as cc
 from .board import MAX_TILES, SCAN_S, Board, load_menu
 from .coach import DEMO_TIMING, SAMPLE_EVERY_S, TIMING, Coach, open_db
-from .history import open_history, record, suggestions
+from .history import open_history, record, suggestions, voice
 from .scan import scan
 from .sources import MuseSource, SimSource
 from .suggest import options as ai_options
@@ -79,7 +79,7 @@ def suggest(path, phrase, token, recent):
     def run():
         found = []
         try:
-            found = ai_options(path, phrase, recent)
+            found = ai_options(path, phrase, recent, voice=voice(history), hour=time.localtime().tm_hour)
         finally:  # even a crash answers, so the board isn't left on "Finding"
             board.options_ready(token, found)
     threading.Thread(target=run, daemon=True).start()
@@ -90,7 +90,7 @@ def suggest_replies(heard, dialog, token):
     def run():
         found = []
         try:
-            found = ai_replies(heard, dialog)
+            found = ai_replies(heard, dialog, voice=voice(history), hour=time.localtime().tm_hour)
         finally:
             board.replies_ready(token, found)
     threading.Thread(target=run, daemon=True).start()

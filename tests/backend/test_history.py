@@ -1,4 +1,4 @@
-from src.backend.history import HALF_LIFE_DAYS, LOOKBACK_DAYS, TOP, open_history, record, suggestions
+from src.backend.history import HALF_LIFE_DAYS, LOOKBACK_DAYS, TOP, open_history, record, suggestions, voice
 
 DAY = 86400
 NOW = 1_790_000_000.0  # a fixed moment; hours are compared in local time on both sides
@@ -44,3 +44,12 @@ def test_texts_and_calls_keep_their_recipient(tmp_path):
          "action": "call", "to": "Nurse"},
         {"label": "Thank you.", "phrase": "Thank you.", "exact": True},
     ]
+
+
+def test_voice_is_their_own_spoken_sentences_newest_first(tmp_path):
+    db = open_history(tmp_path / "h.db")
+    record(db, "Water, please.", now=NOW - 3 * DAY)
+    record(db, "Thanks, love.", now=NOW - 2 * DAY)
+    record(db, "Water, please.", now=NOW - DAY)  # said again: it moves up, and shows once
+    record(db, "I'm on my way.", action="text", to="Sam", now=NOW)  # a text isn't how they talk out loud
+    assert voice(db) == ["Water, please.", "Thanks, love."]
