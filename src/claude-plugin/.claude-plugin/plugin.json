@@ -1,9 +1,9 @@
 {
-  "name": "alpha",
-  "version": "0.1.1",
-  "description": "Drive Claude Code hands-free with Alpha, a Muse headband board: glance to choose, bite down to allow, close your eyes to stop it. Acts only while Alpha's floating window is open.",
+  "name": "rein",
+  "version": "0.2.0",
+  "description": "A brake pedal for Claude Code: close your eyes to stop it, bite down to approve a risky step. Acts only while rein's floating window is open.",
   "author": {
-    "name": "Alpha (Dublin Hacx 2026)"
+    "name": "rein. (Dublin Hacx 2026)"
   },
   "keywords": [
     "accessibility",

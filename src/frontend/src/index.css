@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Alpha's design system (DESIGN.md): studio grey, warm ink, one ultramarine, Host Grotesk. */
+/* rein's design system (DESIGN.md): studio grey, warm ink, one ultramarine, Host Grotesk. */
 :root {
   --background: #f2f2f2;
   --foreground: #201d1d;
@@ -93,8 +93,8 @@
 }
 
 /* toasts (sonner): ink, or ultramarine for help */
-.alpha-toast { background: #201d1d !important; color: #fff !important; border: 0 !important; border-radius: 8px !important; font: 400 var(--text-body) / 1.4 var(--font-sans) !important; padding: 14px 22px !important; width: max-content !important; max-width: min(720px, calc(100vw - 32px)) !important; }
-.alpha-toast--alert { background: #0004f6 !important; font-weight: 600 !important; }
+.rein-toast { background: #201d1d !important; color: #fff !important; border: 0 !important; border-radius: 8px !important; font: 400 var(--text-body) / 1.4 var(--font-sans) !important; padding: 14px 22px !important; width: max-content !important; max-width: min(720px, calc(100vw - 32px)) !important; }
+.rein-toast--alert { background: #0004f6 !important; font-weight: 600 !important; }
 
 @media (prefers-reduced-motion: reduce) {
   .wipe { display: none; }

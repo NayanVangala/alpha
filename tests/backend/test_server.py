@@ -157,7 +157,7 @@ def test_heard_is_gated_and_opens_replies(connected, monkeypatch):
 
 def test_logo_files_are_served():
     client = TestClient(server.app, base_url="http://127.0.0.1:8000")
-    for path in ("/alpha-logo.svg", "/alpha-mark.svg"):
+    for path in ("/rein-logo.svg", "/rein-mark.svg"):
         r = client.get(path)
         assert r.status_code == 200 and r.headers["content-type"].startswith("image/svg+xml") and "<svg" in r.text
 

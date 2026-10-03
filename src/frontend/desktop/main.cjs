@@ -1,9 +1,9 @@
-// Alpha's floating window: a small always-on-top board that sits over VS Code or any terminal (Mac and Windows),
+// rein's floating window: a small always-on-top board that sits over VS Code or any terminal (Mac and Windows),
 // so the wearer can answer Claude Code without leaving it. It shows the board server's page in compact form (?hud).
 // Run the board server first, then: cd src/frontend && npm run hud
 const { app, BrowserWindow, globalShortcut, screen, session, systemPreferences } = require("electron")
 
-const ALPHA = process.env.ALPHA_URL || "http://localhost:8000"
+const REIN = process.env.REIN_URL || process.env.ALPHA_URL || "http://localhost:8000"
 const W = 460
 const H = 560
 
@@ -18,7 +18,7 @@ const KEYS = {
 }
 
 function post(path, body) {
-  fetch(`${ALPHA}${path}`, {
+  fetch(`${REIN}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -38,8 +38,8 @@ function closeEyes() {
 if (process.platform === "darwin") app.dock.hide()
 
 app.whenReady().then(() => {
-  // The camera brake needs the webcam: allowed for Alpha's own page only, and macOS is asked the first time it's used.
-  const ours = (wc) => wc.getURL().startsWith(ALPHA)
+  // The camera brake needs the webcam: allowed for rein's own page only, and macOS is asked the first time it's used.
+  const ours = (wc) => wc.getURL().startsWith(REIN)
   session.defaultSession.setPermissionCheckHandler((wc, permission) => permission === "media" && ours(wc))
   session.defaultSession.setPermissionRequestHandler(async (wc, permission, done) => {
     if (permission !== "media" || !ours(wc)) return done(false)
@@ -58,17 +58,17 @@ app.whenReady().then(() => {
     hasShadow: false, // the page draws its own
     alwaysOnTop: true,
     fullscreenable: false,
-    title: "Alpha",
+    title: "rein",
     webPreferences: { backgroundThrottling: false }, // keep polling at full speed under other windows
   })
   win.setAlwaysOnTop(true, "screen-saver") // above full-screen windows too
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true }) // follows you to every Space
-  const load = () => win.loadURL(`${ALPHA}/board?hud`)
+  const load = () => win.loadURL(`${REIN}/board?hud`)
   win.webContents.on("did-fail-load", (_e, code, why) => {
-    console.log(`Can't reach Alpha at ${ALPHA} (${why}); retrying`) // board server not up yet: keep trying
+    console.log(`Can't reach rein at ${REIN} (${why}); retrying`) // board server not up yet: keep trying
     setTimeout(load, 1500)
   })
-  win.webContents.on("did-finish-load", () => console.log(`Alpha's floating window is showing ${ALPHA}`))
+  win.webContents.on("did-finish-load", () => console.log(`rein's floating window is showing ${REIN}`))
   load()
 
   globalShortcut.register("Control+Alt+Q", () => app.quit()) // close the window; so does its × button

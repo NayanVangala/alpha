@@ -1,5 +1,5 @@
 {
-  "description": "Every hook event goes to Alpha's board server (src/backend/claude_code.py answers it). If Alpha isn't running, Claude Code carries on as usual.",
+  "description": "Every hook event goes to rein's board server (src/backend/claude_code.py answers it). If rein isn't running, Claude Code carries on as usual.",
   "hooks": {
     "SessionStart": [
       {

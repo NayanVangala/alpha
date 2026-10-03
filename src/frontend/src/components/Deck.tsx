@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 const EASE = [0.625, 0.05, 0, 1] as const
 
 /**
- * The mind reader: one guess at a time, never a deck. Alpha shows what it thinks the wearer wants; closing the
+ * The mind reader: one guess at a time, never a deck. rein shows what it thinks the wearer wants; closing the
  * eyes says "no, guess again", a bite says yes, and a guessed sentence says itself when its ring runs out.
  */
 export function Deck({ s }: { s: BoardState }) {
@@ -20,8 +20,8 @@ export function Deck({ s }: { s: BoardState }) {
   const agent = s.screen === "agent"
   const sentence = s.screen === "options" || s.screen === "replies" || (tile.guess && !tile.more)
   const kicker = agent
-    ? tile.guess ? "Alpha’s guess" : "Or"
-    : tile.more ? "Is it about" : tile.guess || sentence ? "Alpha thinks you want to say" : "Do you want"
+    ? tile.guess ? "rein’s guess" : "Or"
+    : tile.more ? "Is it about" : tile.guess || sentence ? "rein thinks you want to say" : "Do you want"
   const key = `${s.screen}|${s.path.join(">")}|${s.heard ?? ""}|${s.agent?.detail ?? ""}|${lit}|${tile.label}`
 
   return (

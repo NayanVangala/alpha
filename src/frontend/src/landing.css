@@ -1,4 +1,4 @@
-/* Alpha's deck. Same language as the app: ultramarine on studio grey, Host Grotesk with tight tracking, black dithered
+/* rein's deck. Same language as the app: ultramarine on studio grey, Host Grotesk with tight tracking, black dithered
    bands, one ease. Light slides alternate with dark and blue ones. */
 :root {
   --bg: #f2f2f2;
@@ -24,6 +24,7 @@ a { color: inherit; }
 
 /* floating pill nav */
 .pill { position: fixed; z-index: 30; top: 16px; left: var(--pad); right: var(--pad); height: 58px; display: flex; align-items: center; gap: 18px; padding: 0 8px 0 18px; background: var(--white); border-radius: 12px; box-shadow: 0 1px 0 var(--line); color: var(--ink); }
+.brand .dot { color: var(--blue); }
 .brand { display: flex; align-items: center; gap: 9px; font-weight: 600; letter-spacing: -0.03em; font-size: 1.15rem; text-decoration: none; }
 .where { display: flex; gap: 12px; align-items: baseline; margin-left: auto; color: var(--soft); font-size: 0.95rem; }
 .where b { color: var(--ink); font-weight: 500; }

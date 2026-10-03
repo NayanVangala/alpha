@@ -8,7 +8,7 @@
 Recordings are EEG from someone's head: ask before recording, keep them in data/ (never committed), and delete
 anyone's on request.
 
-Alpha's real detectors run over the recording, calibrated on its first 20 s the way the app calibrates,
+rein's real detectors run over the recording, calibrated on its first 20 s the way the app calibrates,
 and each step shows what fired against what was asked: bites, a held bite, double blinks, glances, eyes
 closed, and things that must fire nothing (reading, turning the head, talking). The numbers underneath
 (glance swing and polarity, alpha with eyes shut vs open, jaw level) are what the thresholds get tuned from.
@@ -30,12 +30,12 @@ from src.backend.signals import CHANNELS, CONTACT_UV, EEG_FS, BlinkDetector, Cle
 
 # (instruction, seconds, cue word or None, cue times in s from the step start, gesture expected per cue)
 STEPS = [
-    ("Sit still, eyes open, jaw relaxed, blink normally (Alpha calibrates on this)", 20, None, [], None),
+    ("Sit still, eyes open, jaw relaxed, blink normally (rein calibrates on this)", 20, None, [], None),
     ("Bite down briefly (half a second) each time you see BITE", 12, "BITE", [2, 6, 10], "clench"),
     ("Hold a bite from HOLD until it says relax (help gesture)", 6, "HOLD", [1], "long_clench"),
     ("Look far LEFT when you see LEFT, then straight back", 12, "LEFT", [2, 6, 10], "glance_left"),
     ("Look far RIGHT when you see RIGHT, then straight back", 12, "RIGHT", [2, 6, 10], "glance_right"),
-    ("Read this silently, line by line: 'Alpha lets someone who can't move or speak write code with Claude. "
+    ("Read this silently, line by line: 'rein lets someone who can't move or speak write code with Claude. "
      "Their eyes point, their jaw says yes, and their brain hits the brakes.' (nothing should fire)", 10, None, [], None),
     ("Close your eyes at CLOSE and keep them shut until OPEN", 20, "CLOSE", [2, 12], "eyes_closed"),
     ("Turn your head slowly left and right, then nod (nothing should fire)", 8, None, [], None),

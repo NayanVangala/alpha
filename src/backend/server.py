@@ -153,7 +153,7 @@ class Session:
 
         # the simulator's random long clenches would keep opening the help countdown; use the keyboard with it
         coach = Coach(source, open_db(self.db_path), timing=self.timing,
-                      nudge=lambda *a: None,  # Alpha isn't the old posture coach: no pop-ups over a conversation
+                      nudge=lambda *a: None,  # rein isn't the old posture coach: no pop-ups over a conversation
                       on_gesture=board.handle if real else None, on_presence=board.presence_lost if real else None,
                       calibration=saved.get(device["name"]), on_calibrated=keep if real else None)
         coach.state.update(simulated=device["simulated"], demo=self.timing is DEMO_TIMING)
@@ -205,7 +205,7 @@ def page(name):
 
 @app.get("/")
 def landing_page(request: Request):
-    """The deck: what Alpha is, as slides. The floating window (?hud) still loads the app from here."""
+    """The deck: what rein is, as slides. The floating window (?hud) still loads the app from here."""
     return page("index.html" if "hud" in request.query_params else "landing.html")
 
 
@@ -230,10 +230,10 @@ def gaze_config():
 app.mount("/assets", StaticFiles(directory=UI / "assets", check_dir=False), name="assets")
 
 
-@app.get("/alpha-logo.svg")
-@app.get("/alpha-mark.svg")
+@app.get("/rein-logo.svg")
+@app.get("/rein-mark.svg")
 def logo(request: Request):
-    """Alpha's logo (scripts/make_logo.py draws both)."""
+    """rein.'s logo and mark."""
     return FileResponse(FRONTEND / "public" / request.url.path.lstrip("/"), media_type="image/svg+xml")
 
 
@@ -319,18 +319,18 @@ def sim_eyes(req: SimEyesRequest):
     return {"closed": req.closed}
 
 
-ARM_S = 5  # the floating window repeats "I'm open" every 2 s; Alpha drives Claude Code only meanwhile
+ARM_S = 5  # the floating window repeats "I'm open" every 2 s; rein drives Claude Code only meanwhile
 armed_until = 0.0
 
 
 def armed():
-    """Drive Claude Code from Alpha? Only while the floating window is open and a headband is connected."""
+    """Drive Claude Code from rein? Only while the floating window is open and a headband is connected."""
     return time.monotonic() < armed_until and session.phase == "connected"
 
 
 @app.post("/api/agent/arm")
 def agent_arm():
-    """The floating window is open: drive Claude Code from Alpha for the next few seconds."""
+    """The floating window is open: drive Claude Code from rein for the next few seconds."""
     global armed_until
     armed_until = time.monotonic() + ARM_S
     return {"armed": armed()}
@@ -359,7 +359,7 @@ HOOKS = {
 
 @app.post("/api/hooks")
 def claude_code_hook(event: dict):
-    """Claude Code POSTs every hook event here (the Alpha plugin). An empty answer means "carry on as usual"."""
+    """Claude Code POSTs every hook event here (the rein plugin). An empty answer means "carry on as usual"."""
     name = event.get("hook_event_name")
     # a stop already in force outlives the floating window and the headband: closing either must not lift it
     handler = HOOKS.get(name) if armed() or (name == "PreToolUse" and board.braked()) else None
@@ -495,7 +495,7 @@ def main():
         board.scan_s = SCAN_S
 
     session = Session(simulated=args.sim, timing=DEMO_TIMING if args.demo else TIMING)
-    print(f"Alpha: http://localhost:{args.port}", flush=True)
+    print(f"rein: http://localhost:{args.port}", flush=True)
     try:
         uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")
     finally:

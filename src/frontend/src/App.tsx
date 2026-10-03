@@ -76,7 +76,7 @@ export default function App() {
     <>
       <Wipe page={page} />
       {!s && lost && (
-        <p className="grid min-h-screen place-items-center text-body text-muted-foreground">Can't reach Alpha's server. Is it running?</p>
+        <p className="grid min-h-screen place-items-center text-body text-muted-foreground">Can't reach rein's server. Is it running?</p>
       )}
       {s && !open && <Gate h={s.headband} onConnectClick={start} />}
       {s && open && (
@@ -105,7 +105,7 @@ export default function App() {
       {s && open && <Overlays s={s} />}
       {s && open && !started && <StartOverlay onStart={start} />}
       <NerdPanel open={nerdOpen} />
-      <Toaster position="bottom-center" offset={84} toastOptions={{ className: "alpha-toast" }} />
+      <Toaster position="bottom-center" offset={84} toastOptions={{ className: "rein-toast" }} />
     </>
   )
 }

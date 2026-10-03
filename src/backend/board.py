@@ -31,10 +31,10 @@
 - Every agent decision goes in a short ledger (what, yes / no / stop, and
   whether brain, muscle, silence or the keyboard decided it), with counts.
 - Autopilot: an agent question that's safe to guess runs its first card,
-  Alpha's guess, after a short countdown. The wearer only steps in when it's
+  rein's guess, after a short countdown. The wearer only steps in when it's
   wrong: closing the eyes vetoes it, a glance takes over by hand, a bite does
   it now. Risky commands never run by themselves, and after the wearer says
-  no, or after a few automatic "what next" steps in a row, Alpha waits for a
+  no, or after a few automatic "what next" steps in a row, rein waits for a
   bite instead of following the agent's next guess.
 """
 
@@ -59,10 +59,10 @@ GUESSES = 3  # sentences from history that lead Home
 QUICK_REPLIES = ("Yes.", "No.", "Can you say that again?")  # always there, with or without the AI
 ASK_S = 600  # an agent question nobody answered is dropped after this (Claude Code's hook gives up then too)
 BRAKE_S = 120  # eyes closed holds the agent this long, or until the wearer says what's next
-# autopilot: Alpha does its guess after this unless the wearer steps in. Long enough for a real brain to veto:
+# autopilot: rein does its guess after this unless the wearer steps in. Long enough for a real brain to veto:
 # on 109 people's EEG the eyes-closed brake typically fired about 5 s after the eyes shut.
 AUTO_S = {"permission": 6.0, "next": 6.0}
-AUTO_NEXT_MAX = 3  # automatic "what next" steps in a row before Alpha waits for a bite
+AUTO_NEXT_MAX = 3  # automatic "what next" steps in a row before rein waits for a bite
 TALK_S = 6.0  # mind reader: a guessed sentence is said after this unless the wearer closes their eyes
 AGENT_BUSY_S = 10.0  # Claude checked the brake this recently: it's working, so eyes closed brakes it
 
@@ -152,7 +152,7 @@ class Board:
         self.question = None  # the agent question on screen
         self.answers = OrderedDict()  # question id -> the picked option, or None when the wearer went back
         self.brake_until = 0.0  # the agent may not take another step before this
-        self.auto_at = None  # when the agent question on screen answers itself with Alpha's guess
+        self.auto_at = None  # when the agent question on screen answers itself with rein's guess
         self.auto_streak = 0  # automatic "what next" answers since the wearer last picked one
         self.talk_at = None  # when the guessed sentence on screen says itself
         self.moves = [(clock(), 0)]  # (when, card) each time the highlight moved, for the clench lookback
@@ -250,7 +250,7 @@ class Board:
         self._out("narrate", spoken(q, self.auto_at is not None, AUTO_S[q["kind"]]))
 
     def _arm_auto(self, card):
-        """Alpha does `card` after the countdown, unless the agent is braked or it's the wearer's call."""
+        """rein does `card` after the countdown, unless the agent is braked or it's the wearer's call."""
         q = self.question
         braked = self.clock() < self.brake_until
         hold = q["kind"] == "next" and (self.declined or self.auto_streak >= AUTO_NEXT_MAX)
@@ -423,7 +423,7 @@ class Board:
                     return
                 if self.screen == "agent" and not self.overlay and self.question["kind"] == "next":
                     tiles, lit = self._tiles(), self._lit_at(self.clock())
-                    self._note(tiles[lit]["label"], "no", who)  # not that one: Alpha moves to its next guess
+                    self._note(tiles[lit]["label"], "no", who)  # not that one: rein moves to its next guess
                     self.moves.append((self.clock(), (lit + 1) % len(tiles)))
                     del self.moves[:-20]
                     self._arm_auto((lit + 1) % len(tiles))
@@ -601,7 +601,7 @@ class Board:
                 # mind reader: seconds until the guessed sentence on screen says itself
                 "talk_s": max(0.0, self.talk_at - now) if self.talk_at is not None and not self.overlay else None,
                 "talk_total": TALK_S,
-                # autopilot: seconds until Alpha does its guess, and the whole countdown, for the page's ring
+                # autopilot: seconds until rein does its guess, and the whole countdown, for the page's ring
                 "auto_s": max(0.0, self.auto_at - now) if self.auto_at is not None and self.screen == "agent" else None,
                 "auto_total": AUTO_S[self.question["kind"]] if self.auto_at is not None and self.question else None,
                 "ledger": list(self.ledger),

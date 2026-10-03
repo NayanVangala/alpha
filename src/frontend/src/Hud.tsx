@@ -41,7 +41,7 @@ export function Hud() {
     [setS],
   )
   useEffect(() => {
-    // while this window is open, Alpha drives Claude Code; closing it hands Claude Code back
+    // while this window is open, rein drives Claude Code; closing it hands Claude Code back
     void api.arm().catch(() => {})
     const id = setInterval(() => void api.arm().catch(() => {}), 2000)
     return () => clearInterval(id)
@@ -61,8 +61,7 @@ export function Hud() {
       <div className="flex h-full flex-col gap-3 overflow-hidden rounded-xl bg-card p-4 shadow-[0_18px_48px_-22px_rgba(0,0,0,0.5)] ring-1 ring-black/10">
         <header className="flex items-center justify-between gap-3 text-label [-webkit-app-region:drag]">
           <span className="flex min-w-0 items-center gap-2">
-            <img src="/alpha-mark.svg" alt="" width={24} height={18} />
-            <b className="font-semibold tracking-[-0.03em]">Alpha</b>
+            <b className="font-semibold tracking-[-0.03em]">rein<span className="text-ultramarine">.</span></b>
             <span className="truncate text-muted-foreground">· {context}</span>
           </span>
           <span className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
@@ -85,7 +84,7 @@ export function Hud() {
             <button
               type="button"
               title="Close (⌃⌥Q)"
-              aria-label="Close Alpha's floating window"
+              aria-label="Close rein's floating window"
               onClick={() => window.close()}
               className="-mr-1 ml-1 grid size-6 cursor-pointer place-items-center rounded-sm border-0 bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground [-webkit-app-region:no-drag]"
             >
@@ -96,7 +95,7 @@ export function Hud() {
 
         {!s ? (
           <p className="m-0 flex flex-1 items-center text-body text-muted-foreground">
-            {lost ? "Start Alpha's board server, then this window connects by itself." : "Starting…"}
+            {lost ? "Start rein's board server, then this window connects by itself." : "Starting…"}
           </p>
         ) : !open ? (
           <Connect h={s.headband} />
@@ -188,7 +187,7 @@ function Cards({ s }: { s: BoardState }) {
                 {tile.guess && (
                   <>
                     <Sparkles className="size-3" aria-hidden />
-                    Alpha’s guess
+                    rein’s guess
                   </>
                 )}
               </span>

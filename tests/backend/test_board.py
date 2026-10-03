@@ -525,7 +525,7 @@ def test_mind_reader_answers_unless_the_wearer_closes_their_eyes():
     board, asked = with_replies()
     board.heard("Are you hungry?")
     board.replies_ready(asked[0][2], ["Yes, starving.", "Not right now."])
-    assert board.state()["talk_s"] == TALK_S  # Alpha's best reply, on its ring
+    assert board.state()["talk_s"] == TALK_S  # rein's best reply, on its ring
     board.handle("eyes_closed")  # no: guess again
     s = board.state()
     assert s["tiles"][s["lit"]]["label"] == "Not right now." and s["talk_s"] == TALK_S and s["said"] is None

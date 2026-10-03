@@ -202,7 +202,7 @@ class GlanceDetector:
 class EyesClosedDetector:
     """Eyes closed = the alpha rhythm (8-13 Hz) swelling behind the ears (TP9, TP10).
 
-    With the eyes shut the visual cortex idles and alpha grows: the one brain signal Alpha uses, and only as a
+    With the eyes shut the visual cortex idles and alpha grows: the one brain signal rein uses, and only as a
     brake. The forehead pair is left out because blinks and eye movements swamp it. The measure is alpha's
     share of 4-30 Hz power over the last second; a jaw clench floods that range with muscle noise, so it
     lowers the share rather than faking a closure.

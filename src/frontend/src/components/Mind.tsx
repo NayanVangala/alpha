@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils"
 
-/** The autopilot's countdown: a ring that fills until Alpha does its guess, unless the wearer steps in. */
+/** The autopilot's countdown: a ring that fills until rein does its guess, unless the wearer steps in. */
 export function Autopilot({ left, total, className, verb = "Doing it", then = "close your eyes to stop" }: {
   left: number
   total: number

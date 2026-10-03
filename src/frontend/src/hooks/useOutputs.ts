@@ -22,7 +22,7 @@ export function useOutputs(s: BoardState | null) {
     if (s.alert && s.alert.id > was.alert) {
       was.alert = s.alert.id
       play(s.alert, true)
-      toast(`Help requested: “${s.alert.text}”`, { duration: 8000, className: "alpha-toast alpha-toast--alert" })
+      toast(`Help requested: “${s.alert.text}”`, { duration: 8000, className: "rein-toast rein-toast--alert" })
     }
     if (s.said && s.said.id > was.said) {
       was.said = s.said.id

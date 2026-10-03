@@ -1,4 +1,4 @@
-"""Tune Alpha's blink, eyes-closed and bite detectors to your head, from a guided recording (about 6 minutes).
+"""Tune rein's blink, eyes-closed and bite detectors to your head, from a guided recording (about 6 minutes).
 
   Disconnect the headband in the board first (this talks to the Muse itself), then:
   PYTHONPATH=. uv run python scripts/train_personal.py            # record, tune, save data/personal.json

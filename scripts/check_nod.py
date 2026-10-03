@@ -1,4 +1,4 @@
-"""Teach Alpha which of the Muse's gyroscope axes your nods and shakes swing about.
+"""Teach rein which of the Muse's gyroscope axes your nods and shakes swing about.
 
   PYTHONPATH=. uv run python scripts/check_nod.py
 

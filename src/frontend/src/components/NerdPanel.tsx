@@ -352,7 +352,7 @@ export function NerdPanel({ open }: { open: boolean }) {
               </Section>
               <Section title="Alpha against your brake line" note="the brain brake, last 60 s">
                 <canvas ref={chart("alpha")} className="block h-[150px] w-full" role="img" aria-label="Alpha level against the brake line" />
-                <p className="m-0 mt-1.5 text-label text-muted-foreground">Stay above the dashed line for about 1.5 seconds and Alpha applies the brake.</p>
+                <p className="m-0 mt-1.5 text-label text-muted-foreground">Stay above the dashed line for about 1.5 seconds and rein applies the brake.</p>
               </Section>
               <Section title="Brainwave bands" note="share of 1–50 Hz power, behind the ears">
                 <canvas

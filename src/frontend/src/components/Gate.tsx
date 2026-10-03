@@ -1,5 +1,5 @@
 import { motion } from "motion/react"
-import { AlphaLogo } from "@/components/AlphaLogo"
+import { ReinLogo } from "@/components/ReinLogo"
 import { RollText } from "@/components/RollText"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -36,7 +36,7 @@ export function Gate({ h, onConnectClick }: { h: Headband; onConnectClick: () =>
         flickerChance={0.08}
       />
       <div className="relative grid w-[min(680px,100%)] gap-[22px]">
-        <AlphaLogo />
+        <ReinLogo />
         <RollText
           key={title.map((p) => p[0]).join("")}
           parts={title}
@@ -45,7 +45,7 @@ export function Gate({ h, onConnectClick }: { h: Headband; onConnectClick: () =>
         <p className="m-0 max-w-[46ch] text-body text-muted-foreground">
           {calibrating
             ? "Twenty seconds sitting upright, jaw relaxed, eyes open, reading this screen. Don't stare into space: the board learns your normal, awake brain waves, and your eyes-closed brake is measured against them."
-            : "Hold the Muse's button until the lights sweep. Alpha opens once it's connected and has learned your jaw and blinks."}
+            : "Hold the Muse's button until the lights sweep. rein opens once it's connected and has learned your jaw and blinks."}
         </p>
 
         {calibrating ? (

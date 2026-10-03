@@ -111,5 +111,5 @@ def test_only_a_short_safe_list_runs_on_silence_and_everything_else_waits_for_a_
     assert cc.describe("Read", {"file_path": "/Users/me/.ssh/id_rsa"}, "/p")[2]
     assert cc.describe("Read", {"file_path": "/etc/hosts"}, "/p")[2]  # outside the project
     assert not cc.describe("Read", {"file_path": "/p/src/pager.py"}, "/p")[2]
-    assert cc.describe("Edit", {"file_path": "/p/.claude/settings.json", "old_string": "a", "new_string": "b"}, "/p")[2]  # can't switch Alpha off
+    assert cc.describe("Edit", {"file_path": "/p/.claude/settings.json", "old_string": "a", "new_string": "b"}, "/p")[2]  # can't switch rein off
     assert not cc.describe("Edit", {"file_path": "/p/src/pager.py", "old_string": "a", "new_string": "b"}, "/p")[2]

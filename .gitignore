@@ -21,7 +21,7 @@ build/
 # runtime data (SQLite logs)
 data/
 
-# Claude Code local settings (Alpha hooks write absolute paths here)
+# Claude Code local settings (rein hooks write absolute paths here)
 .claude/settings.local.json
 
 # docs and design-tool state (kept locally, not shipped)

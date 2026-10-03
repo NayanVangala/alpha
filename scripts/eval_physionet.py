@@ -5,7 +5,7 @@
 The EEG Motor Movement/Imagery dataset (https://physionet.org/content/eegmmidb/1.0.0/) has, for each of 109
 volunteers, one minute with eyes open (run 1) and one with eyes closed (run 2), on a 64-electrode research cap.
 Muse-like signals are rebuilt from it: the electrodes nearest the Muse's (ear spots, AF7, AF8), each referenced
-to Fpz, the Muse's reference. Alpha's EyesClosedDetector is calibrated on the first 20 s eyes open, exactly as
+to Fpz, the Muse's reference. rein's EyesClosedDetector is calibrated on the first 20 s eyes open, exactly as
 the app calibrates, then counts false brakes over the remaining 40 s with eyes open, and whether (and how fast)
 it catches the closed minute. Files are cached in data/physionet/ (about 280 MB for everyone).
 """
@@ -103,7 +103,7 @@ def main():
             clean = np.mean([r["false"] == 0 for r in res])
             both = np.mean([r["caught"] and r["false"] == 0 for r in res])
             delay = np.median([r["latency"] for r in res if r["latency"] is not None] or [np.nan])
-            mark = "  <- Alpha now" if abs(rise - EyesClosedDetector.RISE) < 1e-9 else ""
+            mark = "  <- rein now" if abs(rise - EyesClosedDetector.RISE) < 1e-9 else ""
             print(f"  {rise:>9.1f}x  {caught:>13.0%}  {clean:>14.0%}  {both:>5.0%}  {delay:>10.1f} s{mark}")
 
 

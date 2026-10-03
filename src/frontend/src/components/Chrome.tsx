@@ -15,7 +15,7 @@ export function BlinkLight({ n }: { n: number }) {
     prev.current = n
   }, [n])
   return (
-    <span className="inline-flex items-center gap-1.5 tabular-nums" title="Flashes each time Alpha sees you blink">
+    <span className="inline-flex items-center gap-1.5 tabular-nums" title="Flashes each time rein sees you blink">
       <i key={flash} className={cn("inline-block size-2.5 rounded-full bg-ultramarine", flash > 0 ? "blink-flash" : "opacity-30")} />
       blinks {n}
     </span>
@@ -59,8 +59,7 @@ export function Header({ status, live, listen, nerdOpen, blinks, camera, onRecal
   return (
     <header className="flex items-center justify-between gap-4 px-[var(--pad-x)] pt-5">
       <div className="flex items-center gap-2.5 text-[1.2rem] font-semibold tracking-[-0.03em]">
-        <img src="/alpha-mark.svg" alt="" width={34} height={26} />
-        <span>Alpha</span>
+        <span>rein<span className="text-ultramarine">.</span></span>
       </div>
       <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-label text-muted-foreground" aria-live="polite">
         <span className={cn("size-2 rounded-xs", live ? "bg-ultramarine" : "bg-idle")} />
@@ -167,7 +166,7 @@ export function StartOverlay({ onStart }: { onStart: () => void }) {
     >
       <span className="grid gap-3.5 text-center">
         <span className="text-headline font-medium tracking-[-0.05em]">Click to start</span>
-        <span className="text-body text-muted-foreground">Lets Alpha speak out loud.</span>
+        <span className="text-body text-muted-foreground">Lets rein speak out loud.</span>
       </span>
     </button>
   )

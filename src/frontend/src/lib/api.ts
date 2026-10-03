@@ -51,13 +51,13 @@ export type BoardState = {
   agent: { kind: "permission" | "next"; title: string; detail: string } | null
   /** the wearer closed their eyes: the coding agent stops before its next step */
   brake: boolean
-  /** autopilot: seconds until Alpha does its guess, and the whole countdown */
+  /** autopilot: seconds until rein does its guess, and the whole countdown */
   auto_s: number | null
   auto_total: number | null
   /** mind reader: seconds until the guessed sentence on screen says itself */
   talk_s: number | null
   talk_total: number
-  /** Alpha is driving Claude Code: the floating window is open and a headband is connected */
+  /** rein is driving Claude Code: the floating window is open and a headband is connected */
   claude_code: boolean
   headband: Headband
   /** the latest agent decisions, oldest first */
@@ -90,7 +90,7 @@ export const api = {
   calibrate: () => post("/api/calibrate"),
   /** simulator only: shut its eyes so its alpha swells (the E key) */
   simEyes: (closed: boolean) => post("/api/sim/eyes", { closed }),
-  /** the floating window says it's open, so Alpha drives Claude Code (repeat every 2 s) */
+  /** the floating window says it's open, so rein drives Claude Code (repeat every 2 s) */
   arm: () => post("/api/agent/arm"),
   nerd: async () => (await (await fetch("/api/nerd")).json()) as Nerd,
 }

@@ -1,9 +1,9 @@
-"""Driving Claude Code from Alpha: what its hooks ask the wearer, and what goes back to Claude.
+"""Driving Claude Code from rein: what its hooks ask the wearer, and what goes back to Claude.
 
 Claude Code POSTs each hook event to the board server's /api/hooks (an HTTP hook), which answers with these
 functions. Get the hooks into Claude Code either way:
-- the Alpha plugin, for every project in the terminal and VS Code alike:
-      /plugin marketplace add ~/dublinhacx      then      /plugin install alpha@alpha
+- the rein plugin, for every project in the terminal and VS Code alike:
+      /plugin marketplace add ~/dublinhacx      then      /plugin install rein@rein
 - or one project only (adds to <project>/.claude/settings.local.json):
       uv run python -m src.backend.claude_code install /path/to/project
 
@@ -13,7 +13,7 @@ The hooks:
 - PermissionRequest: "Claude wants to run npm test" shows on the board as Allow / Deny cards.
 - Stop: when Claude finishes a turn, the board offers what to do next; the pick becomes its next instruction.
 
-They only act while Alpha's floating window is open. If Alpha isn't running, nothing is connected, the
+They only act while rein's floating window is open. If rein isn't running, nothing is connected, the
 wearer goes back, or nobody answers, each hook steps aside and Claude Code carries on as usual.
 """
 
@@ -51,7 +51,7 @@ UNSAFE_SHELL = re.compile(r"\$\(|`|(?<![\d&])>(?!&\d|\s*/dev/null)|>>")
 SECRET = re.compile(
     r"(\.env\b|\.ssh\b|\.aws\b|\.gnupg\b|\.netrc|\.npmrc|\.pem\b|\.key\b|id_(?:rsa|ed25519)|credentials|secrets?\b|keychain)", re.I
 )
-PROTECTED = re.compile(r"(^|/)(\.claude/|\.git/|hooks\.json$)")  # an agent must not be able to switch Alpha's hooks off
+PROTECTED = re.compile(r"(^|/)(\.claude/|\.git/|hooks\.json$)")  # an agent must not be able to switch rein's hooks off
 
 
 def bash_is_safe(cmd):
@@ -72,17 +72,17 @@ NEXT_LINE = re.compile(r"^[\s*_`]*Next[\s*_`]*:\s*(.+?)\s*$", re.M | re.I)
 DONE = "I'm done"
 FIXED_NEXT = {"Keep going": "going", "Run the tests": "test"}  # always offered, unless a guess already says it
 GUIDE = (
-    "The user is driving this session hands-free with Alpha, a board they control by biting down and closing their eyes, "
+    "The user is driving this session hands-free with rein, a board they control by biting down and closing their eyes, "
     "so they can't type. End every reply with one line: `Next: <step> | <step> | <step>`, the three instructions "
     "about this project they are most likely to give you next, like `Run the tests` or `Commit this`. "
     "Write each one out in full, 2 to 6 words."
 )
 NO = (
-    "The user said no on Alpha, their hands-free board. That's their choice, not an error: don't retry it or try "
+    "The user said no on rein, their hands-free board. That's their choice, not an error: don't retry it or try "
     "to get around it. End your turn with one line on what you'd do instead."
 )
 BRAKED = (
-    "The user closed their eyes to stop you (Alpha's brake). Don't call any more tools. "
+    "The user closed their eyes to stop you (rein's brake). Don't call any more tools. "
     "End your turn now with one line on where you stopped."
 )
 
@@ -173,7 +173,7 @@ def on_stop(event, ask):
         return None  # let Claude stop
     return {
         "decision": "block",
-        "reason": f'The user picked their next instruction on Alpha, their hands-free board: "{picked}". Do that now.',
+        "reason": f'The user picked their next instruction on rein, their hands-free board: "{picked}". Do that now.',
     }
 
 
@@ -188,12 +188,12 @@ def on_session_start(event):
 
 
 def hooks_config(url=HOOK_URL):
-    """The hooks block for Claude Code settings (and the plugin's hooks.json): every event goes to Alpha."""
+    """The hooks block for Claude Code settings (and the plugin's hooks.json): every event goes to rein."""
     def hook(timeout):
         return [{"hooks": [{"type": "http", "url": url, "timeout": timeout}]}]
 
     # SessionStart's added context only reaches Claude from a command hook, so this one forwards with curl
-    # (on every Mac and on Windows 10+); "|| true" keeps Alpha being off from showing up as a hook error
+    # (on every Mac and on Windows 10+); "|| true" keeps rein being off from showing up as a hook error
     forward = f"curl -s --max-time 4 -H 'Content-Type: application/json' --data-binary @- {url} || true"
     return {
         "SessionStart": [{"hooks": [{"type": "command", "command": forward, "timeout": 5}]}],
@@ -204,7 +204,7 @@ def hooks_config(url=HOOK_URL):
 
 
 def install(project):
-    """Add Alpha's hooks to one project's local Claude Code settings, keeping anything else there."""
+    """Add rein's hooks to one project's local Claude Code settings, keeping anything else there."""
     settings = Path(project).expanduser().resolve() / ".claude" / "settings.local.json"
     data = json.loads(settings.read_text()) if settings.exists() else {}
     hooks = data.setdefault("hooks", {})
@@ -220,4 +220,4 @@ def install(project):
 if __name__ == "__main__":
     if sys.argv[1:2] != ["install"]:
         sys.exit("usage: python -m src.backend.claude_code install /path/to/project")
-    print(f"Alpha's hooks are in {install(sys.argv[2] if len(sys.argv) > 2 else '.')}")
+    print(f"rein's hooks are in {install(sys.argv[2] if len(sys.argv) > 2 else '.')}")

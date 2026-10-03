@@ -49,7 +49,7 @@ export function useCameraBrake(): CameraBrake {
         }
         src = s
         setState("on")
-        setMessage("The webcam brake is on: close your eyes for a second and Alpha stops Claude.")
+        setMessage("The webcam brake is on: close your eyes for a second and rein stops Claude.")
       })
       .catch((e: Error) => {
         clearTimeout(timer)

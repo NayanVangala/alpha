@@ -247,7 +247,7 @@ fetch("/api/gaze/config")
   .catch(() => {
     const a = document.querySelector<HTMLAnchorElement>(".bubble")
     if (!a) return
-    a.href = "https://github.com/NayanVangala/alpha"
+    a.href = "https://github.com/NayanVangala/rein"
     a.target = "_blank"
     a.rel = "noopener"
     a.querySelector("span")!.textContent = "View the code"
