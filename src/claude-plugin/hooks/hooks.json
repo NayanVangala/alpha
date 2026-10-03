@@ -1,0 +1,49 @@
+{
+  "description": "Every hook event goes to Alpha's board server (src/backend/claude_code.py answers it). If Alpha isn't running, Claude Code carries on as usual.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -s --max-time 4 -H 'Content-Type: application/json' --data-binary @- http://127.0.0.1:8000/api/hooks || true",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:8000/api/hooks",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:8000/api/hooks",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:8000/api/hooks",
+            "timeout": 600
+          }
+        ]
+      }
+    ]
+  }
+}

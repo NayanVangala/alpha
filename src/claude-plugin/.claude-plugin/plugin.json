@@ -1,0 +1,15 @@
+{
+  "name": "alpha",
+  "version": "0.1.1",
+  "description": "Drive Claude Code hands-free with Alpha, a Muse headband board: glance to choose, bite down to allow, close your eyes to stop it. Acts only while Alpha's floating window is open.",
+  "author": {
+    "name": "Alpha (Dublin Hacx 2026)"
+  },
+  "keywords": [
+    "accessibility",
+    "eeg",
+    "muse",
+    "hands-free",
+    "bci"
+  ]
+}
