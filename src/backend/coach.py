@@ -31,6 +31,7 @@ SAMPLE_EVERY_S = 5  # one samples row per this many seconds of live data
 LOW_BLINKS_PER_MIN = 7  # healthy is ~15; screens drop it to ~5
 SLOUCH_DEG = 15
 STALE_S = 2  # no EEG for this long = headband isn't sending
+OFF_S = 3  # every sensor off the skin this long = the headband has been taken off
 RECONNECT_EVERY_S = 15
 APP_REFRESH_S = 1
 NERD_WINDOW_S = 30  # how far back the Stats for nerds charts reach
@@ -73,10 +74,12 @@ def open_db(path):
 
 class Coach:
     def __init__(self, source, db, timing=TIMING, nudge=notify, app_name=frontmost_app, clock=time.time, sleep=time.sleep,
-                 on_gesture=None, calibration=None, on_calibrated=None):
+                 on_gesture=None, calibration=None, on_calibrated=None, on_presence=None):
         self.source, self.db, self.t = source, db, timing
         self.on_calibrated = on_calibrated  # gets self.calibration after each calibration with real data
         self.on_gesture = on_gesture  # board input: (kind, ago_s)
+        self.on_presence = on_presence  # board: the headband came off or went quiet (reason)
+        self.off_since, self.lost_told, self.presence_at = None, False, 0.0
         self.nudge, self.app_name, self.clock, self.sleep = nudge, app_name, clock, sleep
         self.want_calibration = True
         self.running = True
@@ -206,6 +209,7 @@ class Coach:
     def _go_stale(self):
         """Headband silent: show nothing rather than frozen numbers, and don't log or nudge."""
         if self.state["live"]:
+            self._lost("Headband stopped sending")
             # restart the streaming filters (keeping calibration) so the gap can't look like a blink
             self.blinks = BlinkDetector(self.blinks.threshold_uv, self.blinks.sign)
             self.clench = ClenchDetector(self.clench.threshold_uv)
@@ -214,6 +218,23 @@ class Coach:
         self.blink_times.clear()
         self.nerd = None
         self.state.update(live=False, blink_rate=None, clenching=False, tilt=None, hr=None, loose_sensors=None, alpha=None)
+
+    def _lost(self, reason):
+        """Tell the board once per outage: the agent is held back until the wearer is back."""
+        if not self.lost_told:
+            self.lost_told = True
+            if self.on_presence:
+                self.on_presence(reason)
+
+    def _presence(self, now, loose):
+        """`loose`: no sensor on the skin. For OFF_S that means the band is off."""
+        if not loose:
+            self.off_since, self.lost_told = None, False
+            return
+        if self.off_since is None:
+            self.off_since = now
+        if now - self.off_since >= OFF_S:
+            self._lost("Headband taken off")
 
     def _maybe_reconnect(self):
         now = self.clock()
@@ -242,6 +263,10 @@ class Coach:
             self.live_since = self.last_sample = now
         self.state["live"] = True
         self.eeg_tail.extend(eeg.T)
+        if now - self.presence_at >= 1.0:
+            self.presence_at = now
+            ok = contact(np.array(self.eeg_tail).T)
+            self._presence(now, ok is not None and not any(ok))
 
         window = self.t["blink_window_s"]
         new_blinks = self.blinks.feed(eeg[1], eeg[2])

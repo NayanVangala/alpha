@@ -138,3 +138,19 @@ def test_a_saved_calibration_skips_the_20_s_one_and_reports_back(tmp_path):
     again = Coach(Headband(), open_db(tmp_path / "d.db"), calibration=kept[0], clock=clock, sleep=clock.sleep)
     assert not again.want_calibration and again.calibration == kept[0]
     assert again.state["calibration_note"].startswith("Using your saved calibration")
+
+
+def test_the_board_hears_once_when_the_headband_goes_quiet_or_comes_off(tmp_path):
+    told = []
+    c, clock, band, _ = make(tmp_path)
+    c.on_presence = told.append
+    run(c, clock, 3)
+    assert told == []
+    band.silent = True
+    run(c, clock, 6)
+    assert told == ["Headband stopped sending"]  # once per outage, not every step
+    band.silent = False
+    run(c, clock, 4)
+    c._presence(clock(), True)
+    c._presence(clock() + 3.1, True)
+    assert told[-1] == "Headband taken off"

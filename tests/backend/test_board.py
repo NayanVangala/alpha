@@ -551,3 +551,12 @@ def test_eyes_closed_walks_the_guesses_and_backs_out():
     assert b.state()["screen"] == "confirm"
     b.handle("eyes_closed")  # don't say it
     assert b.state()["screen"] == "menu" and b.state()["said"] is None
+
+
+def test_taking_the_headband_off_brakes_a_working_agent_and_denies_what_waits(b):
+    b.presence_lost("Headband taken off")
+    assert not b.braked()  # no agent was working: nothing to hold back, so the next session isn't blocked
+    assert not b.braked()
+    b.presence_lost("Headband taken off")
+    assert b.braked() and b.state()["notice"]["text"].startswith("Headband taken off")  # Claude had just checked the brake
+    assert b.state()["ledger"][-1]["by"] == "presence"

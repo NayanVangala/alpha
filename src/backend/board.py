@@ -478,6 +478,23 @@ class Board:
             else:
                 self.asks.append(q)
 
+    def presence_lost(self, reason):
+        """The headband came off or went quiet: fail closed. A working agent is held back and a pending permission is
+        denied. Nothing happens when no agent is working, so taking the band off at day's end blocks no one."""
+        with self.lock:
+            self.tick()
+            if self.screen != "agent" and self.clock() - self.agent_seen > AGENT_BUSY_S:
+                return
+            newly = self.clock() >= self.brake_until
+            self.brake_until = self.clock() + BRAKE_S
+            self._out("notice", f"{reason}: Claude stops before its next step.")
+            if self.screen == "agent" and not self.overlay and self.question["kind"] == "permission":
+                self._note(self.question["detail"], "no", "presence")
+                self.declined = True
+                self._answer("Deny")
+            elif newly:
+                self._note("Stop Claude", "stop", "presence")
+
     def braked(self):
         """True while the wearer's closed eyes hold the agent back. The agent asks before every step."""
         with self.lock:

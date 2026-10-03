@@ -148,7 +148,7 @@ class Session:
         # the simulator's random long clenches would keep opening the help countdown; use the keyboard with it
         coach = Coach(source, open_db(self.db_path), timing=self.timing,
                       nudge=lambda *a: None,  # Alpha isn't the old posture coach: no pop-ups over a conversation
-                      on_gesture=board.handle if real else None,
+                      on_gesture=board.handle if real else None, on_presence=board.presence_lost if real else None,
                       calibration=saved.get(device["name"]), on_calibrated=keep if real else None)
         coach.state.update(simulated=device["simulated"], demo=self.timing is DEMO_TIMING)
         self.source, self.coach, self.phase = source, coach, "connected"
