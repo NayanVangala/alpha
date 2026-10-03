@@ -204,3 +204,17 @@ def test_claude_code_hooks_only_act_while_the_floating_window_arms_alpha(connect
     server.board.brake_until = 0.0
     threading.Timer(0.5, lambda: server.board.handle("clench")).start()  # the wearer bites Allow
     assert hook("PermissionRequest").json()["hookSpecificOutput"]["decision"] == {"behavior": "allow"}
+
+
+def test_a_brake_in_force_survives_the_floating_window_closing(connected, monkeypatch):
+    client = connected
+    hook = lambda event: client.post("/api/hooks", json={"hook_event_name": event, "tool_name": "Bash",  # noqa: E731
+                                                         "tool_input": {"command": "pytest"}})
+    client.post("/api/agent/arm")
+    assert hook("PreToolUse").content == b""  # Claude is working: eyes closed now brakes it
+    client.post("/api/input", json={"kind": "eyes_closed"})
+    monkeypatch.setattr(server, "armed_until", 0.0)  # the window closes with the wearer's eyes shut
+    assert hook("PreToolUse").json()["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert hook("PermissionRequest").content == b""  # everything else steps aside, as before
+    server.board.brake_until = 0.0
+    assert hook("PreToolUse").content == b""  # no brake, no window: Claude Code carries on

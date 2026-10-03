@@ -317,7 +317,9 @@ HOOKS = {
 @app.post("/api/hooks")
 def claude_code_hook(event: dict):
     """Claude Code POSTs every hook event here (the Alpha plugin). An empty answer means "carry on as usual"."""
-    handler = HOOKS.get(event.get("hook_event_name")) if armed() else None
+    name = event.get("hook_event_name")
+    # a stop already in force outlives the floating window and the headband: closing either must not lift it
+    handler = HOOKS.get(name) if armed() or (name == "PreToolUse" and board.braked()) else None
     out = handler(event) if handler else None
     return out or Response(status_code=200)
 
