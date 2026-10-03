@@ -20,7 +20,7 @@ from pathlib import Path
 import numpy as np
 
 from src.backend.gestures import TAP_MIN_S
-from src.backend.signals import EEG_FS, BlinkDetector, ClenchDetector, EyesClosedDetector, FastBlink
+from src.backend.signals import EEG_FS, BlinkDetector, ClenchDetector, EyesClosedDetector, FastBlink, band_rms
 
 OUT = Path("data/personal.json")
 STEP = 64  # samples per chunk when replaying a take through a detector, like the live loop
@@ -48,21 +48,37 @@ def say(text):
     subprocess.run(["say", text], check=False)
 
 
+STALL_S = 2.5  # no EEG for this long: the stream has dropped
+
+
+def contact_ok(eeg_chunks):
+    """The ears (TP9, TP10) read like skin: 1-150 uV over the last 2 s."""
+    x = np.concatenate(eeg_chunks, axis=1)[:, -2 * EEG_FS :]
+    if x.shape[1] < EEG_FS:
+        return False
+    ears = band_rms(x)[[0, 3]]
+    return bool(np.all((ears >= 1.0) & (ears <= 150.0)))
+
+
 def record():
     from src.backend.sources import MuseSource
 
     source = MuseSource()
+
+    def connect():
+        for attempt in range(8):  # about a minute and a half: it may need its button pressed
+            try:
+                source.start()
+                return
+            except RuntimeError:
+                if attempt == 7:
+                    sys.exit("Couldn't reach the headband. Press its button, wait for the lights, and rerun.")
+                if attempt == 0:
+                    say("I can't find the headband. Hold its button until the lights sweep.")
+
     print("Connecting to the Muse (can take ~10 s)...", flush=True)
-    for attempt in range(6):
-        try:
-            source.start()
-            break
-        except RuntimeError:
-            if attempt == 5:
-                raise
-            if attempt == 0:
-                say("I can't find the headband. Hold its button until the lights sweep.")
-    eeg, n = [], 0
+    connect()
+    eeg, n, last = [], 0, [time.time()]
 
     def pull():
         nonlocal n
@@ -70,28 +86,58 @@ def record():
         if d.shape[1]:
             eeg.append(d)
             n += d.shape[1]
+            last[0] = time.time()
 
     segs, cues = [], []
     try:
-        for _ in range(30):  # let the stream settle
-            time.sleep(0.1)
+        say("Sit still and look at the screen for fifteen seconds while the signal settles.")
+        end = time.time() + 15
+        last[0] = time.time()
+        while time.time() < end:
+            time.sleep(0.05)
             pull()
+        for waited in range(6):  # until the ears read like skin
+            if contact_ok(eeg):
+                break
+            if waited == 0:
+                say("The signal isn't clean yet. Seat the headband snugly and wet the sensors a little.")
+            for _ in range(100):
+                time.sleep(0.05)
+                pull()
+        else:
+            sys.exit("The ear sensors never read like skin. Re-seat and wet the headband, then rerun.")
         eeg.clear()
         n = 0
         for name, text, secs, cue_list in plan():
-            say(text)
-            for _ in range(15):  # a beat to react
-                time.sleep(0.1)
-                pull()
-            start, t0, pending = n, time.time(), list(cue_list)
-            while time.time() - t0 < secs:
-                time.sleep(0.05)
-                pull()
-                if pending and time.time() - t0 >= pending[0][0]:
-                    _, word = pending.pop(0)
-                    cues.append({"seg": name, "word": word, "idx": n})
-                    say(word)
-            segs.append({"name": name, "start": start, "end": n})
+            for attempt in range(3):
+                keep, kept_n, kept_cues = len(eeg), n, len(cues)
+                say(text)
+                for _ in range(15):  # a beat to react
+                    time.sleep(0.1)
+                    pull()
+                start, t0, pending, stalled = n, time.time(), list(cue_list), False
+                last[0] = time.time()
+                while time.time() - t0 < secs:
+                    time.sleep(0.05)
+                    pull()
+                    if time.time() - last[0] > STALL_S:
+                        stalled = True
+                        break
+                    if pending and time.time() - t0 >= pending[0][0]:
+                        _, word = pending.pop(0)
+                        cues.append({"seg": name, "word": word, "idx": n})
+                        say(word)
+                if not stalled and n - start >= 0.9 * secs * EEG_FS:
+                    segs.append({"name": name, "start": start, "end": n})
+                    break
+                say("The connection dropped. Repeating that part.")
+                del eeg[keep:], cues[kept_cues:]  # throw away the partial part
+                n = kept_n
+                source.stop()
+                connect()
+                last[0] = time.time()
+            else:
+                sys.exit(f"The connection kept dropping during '{name}'. Move closer to the computer and rerun.")
     finally:
         source.stop()
     say("Done. Thank you.")
@@ -138,7 +184,7 @@ def analyze(eeg, segs, cues):
                 best = row
         report.append(f"Blink: your typical blink is {height:.0f} uV. Default line caught {default[2]}/{len(windows)} cued blinks "
                       f"({default[3]:.0f}/min while talking, looking, turning); best line caught {best[2]}/{len(windows)} ({best[3]:.0f}/min).")
-        if best[0] > default[0] + 0.02:
+        if best[2] > 0 and best[0] > default[0] + 0.02:
             personal["blink"] = {"FRAC": best[1]}
 
     # ---- eyes closed: each closed period should fire once; nothing else should
@@ -161,7 +207,7 @@ def analyze(eeg, segs, cues):
     if windows and default:
         report.append(f"Eyes closed: default line caught {default[3]}/{len(windows)} closures with {default[4]} false stops; "
                       f"best (rise {-best[1]}, floor {best[2]}) caught {best[3]}/{len(windows)} with {best[4]} false.")
-        if best[0] > default[0] + 0.05:
+        if best[3] > 0 and best[0] > default[0] + 0.05:
             personal["eyes"] = {"RISE": -best[1], "MIN_THRESHOLD": best[2]}
 
     # ---- bites
@@ -186,7 +232,7 @@ def analyze(eeg, segs, cues):
     if windows and default:
         report.append(f"Bite: default line caught {default[3]}/{len(windows)} with {default[4]} false; "
                       f"best (K {best[1]}, floor {best[2]}) caught {best[3]}/{len(windows)} with {best[4]} false.")
-        if best[0] > default[0] + 0.05:
+        if best[3] > 0 and best[0] > default[0] + 0.05:
             personal["clench"] = {"K": best[1], "FLOOR": best[2]}
     return personal, report
 
@@ -205,6 +251,9 @@ def main():
         path = Path("data") / f"personal_train_{time.strftime('%Y%m%d_%H%M%S')}.npz"
         np.savez(path, eeg=eeg, segs=json.dumps(segs), cues=json.dumps(cues))
         print(f"\nSaved the take to {path} (re-tune it later with --replay).")
+    missing = [name for name, *_ in plan() if name not in {s["name"] for s in segs}]
+    if missing:
+        sys.exit(f"The take is incomplete (missing: {', '.join(missing)}), so nothing was tuned. Rerun it.")
     personal, report = analyze(eeg, segs, cues)
     print("\n" + "\n".join(report))
     if not personal:
