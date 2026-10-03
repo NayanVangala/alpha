@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Screen Body Coach</title>
+<meta name="description" content="A Muse 2 headband that shows what screen time does to your jaw, eyes, neck and pulse, app by app.">
+<meta name="theme-color" content="#F2F2F2">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 10 10%27 shape-rendering=%27crispEdges%27%3E%3Cpath fill=%27%230004F6%27 d=%27M3 0h4v1h1v1h1v3H8v2H7v1H6v2H3V8H2V6H1V2h1V1h1z%27/%3E%3Cpath fill=%27%23fff%27 d=%27M6 3h1v1H6z%27/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@300..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lenis@1.3.4/dist/lenis.css">
+<style>
+  :root {
+    --bg: #F2F2F2;
+    --white: #FFFFFF;
+    --black: #000000;
+    --ink: #201D1D;
+    --ink-2: #57524F;
+    --rule: rgba(32, 29, 29, 0.12);
+    --blue: #0004F6;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-xs: 2px;
+    --pad-x: clamp(20px, 2.9vw, 50px);
+    --max-w: 1440px;
+    --ease: cubic-bezier(.625, .05, 0, 1);
+    --t: .5s;
+    --t-long: .735s;
+    --h1: clamp(2.9rem, 5.05vw, 5.44rem);
+    --h2: clamp(2.25rem, 3.76vw, 4.06rem);
+    --h3: clamp(1.6rem, 2.14vw, 2.31rem);
+    --para: clamp(1.05rem, 1.22vw, 1.3125rem);
+    --small: 0.9375rem;
+    --font: "Host Grotesk", "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); color: var(--ink); scrollbar-color: rgba(32, 29, 29, 0.28) transparent; }
+  body { margin: 0; font: 400 var(--para)/1.45 var(--font); -webkit-font-smoothing: antialiased; caret-color: var(--blue); }
+  ::selection { background: var(--blue); color: var(--white); }
+  :focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: var(--radius-xs); }
+  a { color: inherit; text-underline-offset: 0.18em; }
+  button { font: inherit; color: inherit; }
+  [hidden] { display: none !important; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* type */
+  .display { font-weight: 500; letter-spacing: -0.045em; line-height: 0.98; margin: 0; }
+  h1.display { font-size: var(--h1); }
+  h2.display { font-size: var(--h2); }
+  .accent { color: var(--blue); }
+  .lede { font-size: var(--para); color: var(--ink-2); max-width: 46ch; margin: 1.5rem 0 0; }
+  .fine { font-size: var(--small); color: var(--ink-2); max-width: 60ch; }
+
+  /* character roll */
+  .roll .word { display: inline-block; white-space: nowrap; }
+  .roll .char { display: inline-block; }
+  .roll.armed .char { transform: translateY(0.55em); filter: blur(0.09em); opacity: 0; }
+  .roll.armed.in .char { transform: none; filter: none; opacity: 1;
+    transition: transform var(--t-long) var(--ease), filter var(--t-long) var(--ease), opacity var(--t) var(--ease);
+    transition-delay: calc(var(--i) * 16ms); }
+
+  /* floating nav */
+  .nav { position: fixed; top: 24px; left: var(--pad-x); right: var(--pad-x); z-index: 20; display: flex; gap: 12px; align-items: stretch; justify-content: space-between; pointer-events: none; }
+  .nav > * { pointer-events: auto; }
+  .pill { flex: 0 1 820px; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 60px; padding: 0 20px; background: var(--white); border-radius: var(--radius); box-shadow: 0 1px 0 var(--rule), 0 12px 32px -18px rgba(0, 0, 0, 0.25); }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -0.03em; font-size: 1.2rem; text-decoration: none; }
+  .brand svg { width: 30px; height: 30px; display: block; }
+  .status { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: var(--small); color: var(--ink-2); margin: 0; text-align: right; }
+  .status span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dot { width: 8px; height: 8px; border-radius: var(--radius-xs); background: #B9B6B3; flex: none; }
+  .dot.live { background: var(--blue); animation: beat 1.6s var(--ease) infinite; }
+  @keyframes beat { 0%, 100% { transform: scale(1); } 12% { transform: scale(1.45); } 30% { transform: scale(1); } }
+  .tag { font-size: 0.8125rem; font-weight: 500; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--ink); color: var(--ink); white-space: nowrap; }
+
+  /* bubble-arrow button */
+  .bubble { display: inline-flex; align-items: stretch; gap: 4px; border: 0; padding: 0; background: none; cursor: pointer; text-decoration: none; height: 60px; }
+  .bubble__text { display: flex; align-items: center; padding: 0 28px; border-radius: var(--radius-sm); background: var(--blue); color: var(--white); font-weight: 500; overflow: hidden; white-space: nowrap; }
+  .bubble__label { display: inline-block; transition: transform var(--t-long) var(--ease); }
+  .bubble__arrow { position: relative; width: 60px; flex: none; border-radius: var(--radius-sm); background: var(--white); color: var(--ink); overflow: hidden; }
+  .bubble__arrow svg { position: absolute; inset: 0; margin: auto; width: 22px; height: 22px; transition: transform var(--t-long) var(--ease); }
+  .bubble__arrow svg + svg { transform: translate(-150%, -150%); }
+  .bubble:hover .bubble__label { transform: translateX(4px); }
+  .bubble:hover .bubble__arrow svg:first-child { transform: translate(150%, 150%); }
+  .bubble:hover .bubble__arrow svg + svg { transform: none; }
+  .bubble--white .bubble__text { background: var(--white); color: var(--ink); box-shadow: inset 0 0 0 1px var(--rule); }
+  .bubble--white .bubble__arrow { background: var(--blue); color: var(--white); }
+  .panel .bubble__arrow { background: var(--bg); }
+  .bubble--small { height: 46px; }
+  .bubble--small .bubble__text { padding: 0 18px; font-size: var(--small); }
+  .bubble--small .bubble__arrow { width: 46px; }
+  .bubble:disabled { cursor: default; opacity: 0.55; }
+  .bubble:disabled:hover .bubble__label, .bubble:disabled:hover .bubble__arrow svg:first-child { transform: none; }
+  .bubble:disabled:hover .bubble__arrow svg + svg { transform: translate(-150%, -150%); }
+  .bubble:focus-visible { outline-offset: 4px; border-radius: var(--radius-sm); }
+
+  /* underline link */
+  .uline { background: none; border: 0; padding: 0; cursor: pointer; position: relative; text-decoration: none; font-weight: 500; }
+  .uline::before { content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 1px; background: currentColor; transform-origin: right; transition: transform var(--t-long) var(--ease); }
+  .uline:hover::before { transform: scaleX(0); }
+
+  main { padding-top: 120px; }
+  .wrap { max-width: var(--max-w); margin: 0 auto; padding: 0 var(--pad-x); }
+
+  /* lock screen */
+  .lock { min-height: calc(100vh - 120px); display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); gap: 40px; align-items: center; padding-bottom: 64px; }
+  .lock__copy { padding-top: 24px; }
+  .panel { background: var(--white); border-radius: var(--radius); }
+  .devices { margin-top: 2.5rem; max-width: 620px; }
+  .devices__head { display: flex; justify-content: space-between; align-items: baseline; padding: 18px 22px 14px; border-bottom: 1px solid var(--rule); font-size: var(--small); color: var(--ink-2); }
+  .devices__head b { color: var(--ink); font-weight: 500; }
+  .device { display: grid; grid-template-columns: 40px 1fr auto; gap: 16px; align-items: center; padding: 16px 22px; }
+  .device + .device { border-top: 1px solid var(--rule); }
+  .device__glyph { width: 40px; height: 40px; border-radius: var(--radius-sm); background: var(--bg); display: grid; place-items: center; }
+  .device__glyph svg { width: 24px; height: 24px; }
+  .device__name { font-weight: 500; letter-spacing: -0.02em; }
+  .device__meta { font-size: var(--small); color: var(--ink-2); }
+  .device--off .device__name { color: var(--ink-2); }
+  .skeleton { height: 12px; border-radius: var(--radius-xs); background: linear-gradient(90deg, #ECEAE8 25%, #F6F5F4 50%, #ECEAE8 75%); background-size: 300% 100%; animation: shimmer 1.4s linear infinite; }
+  @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+  .devices__note { padding: 18px 22px 22px; font-size: var(--small); color: var(--ink-2); margin: 0; }
+  .devices__note strong { color: var(--ink); font-weight: 500; }
+  .error { color: var(--ink); font-weight: 500; display: flex; gap: 10px; align-items: flex-start; }
+  .error svg { flex: none; margin-top: 3px; }
+
+  .art { position: relative; aspect-ratio: 7 / 8; width: 100%; max-width: 620px; justify-self: center; }
+  .art canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; touch-action: pan-y; }
+  .art__caption { position: absolute; left: 0; right: 0; bottom: -8px; text-align: center; font-size: var(--small); color: var(--ink-2); margin: 0; }
+
+  /* dashboard: the live head is the stage; readings annotate it */
+  .stage-wrap { padding-bottom: 12px; }
+  .stage { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 440px) minmax(0, 1fr); grid-template-rows: auto auto auto; column-gap: 28px; row-gap: 6px; align-items: center; }
+  .stage .art { grid-area: 1 / 2 / 3 / 3; width: 112%; max-width: none; margin: 0 -6%; justify-self: center; z-index: 0; }
+  .leaders { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 1; }
+  .leaders polyline { fill: none; stroke: rgba(32, 29, 29, 0.4); stroke-width: 1; }
+  .leaders rect { fill: var(--ink); }
+  .leaders .alert polyline { stroke: var(--blue); }
+  .leaders .alert rect { fill: var(--blue); }
+  .stage__caption { grid-area: 3 / 2; text-align: center; font-size: var(--small); color: var(--ink-2); margin: 0; }
+  .anno { position: relative; z-index: 1; padding: 18px 0; }
+  #rPulse { grid-area: 1 / 1; } #rNeck { grid-area: 2 / 1; } #rEyes { grid-area: 1 / 3; } #rJaw { grid-area: 2 / 3; }
+  .anno--l { text-align: right; padding-right: 24px; }
+  .anno--r { padding-left: 24px; }
+  .anno__label { font-weight: 500; font-size: 1.05rem; }
+  .anno__value { font-size: clamp(2.6rem, 4.4vw, 4.4rem); font-weight: 500; letter-spacing: -0.05em; line-height: 1; margin: 10px 0 8px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .anno__value--word { font-size: clamp(2.1rem, 3.4vw, 3.5rem); }
+  .anno__value small { font-size: var(--small); letter-spacing: -0.01em; font-weight: 400; color: var(--ink-2); margin-left: 8px; }
+  .anno__note { font-size: var(--small); color: var(--ink-2); margin: 0; max-width: 30ch; }
+  .anno--l .anno__note { margin-left: auto; }
+  .anno.alert .anno__value { color: var(--blue); }
+  .stage.calibrating .anno { visibility: hidden; }
+  .stage.stale .anno, .stage.stale .art { opacity: 0.35; transition: opacity var(--t) var(--ease); }
+  .calib { grid-area: 1 / 1 / 3 / 2; z-index: 1; text-align: right; }
+  .calib__num { font-size: clamp(5.5rem, 11vw, 10rem); font-weight: 500; letter-spacing: -0.06em; line-height: 0.9; margin: 0; }
+  .calib__num small { font-size: var(--para); letter-spacing: -0.01em; font-weight: 400; color: var(--ink-2); margin-left: 10px; }
+  .calib h2 { font-size: var(--h3); margin-top: 18px; }
+  .calib ul { list-style: none; padding: 0; margin: 20px 0 0; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+  .calib li { font-size: var(--small); padding: 6px 12px; border-radius: 999px; background: var(--white); }
+  .strip { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: center; justify-content: space-between; margin-top: 14px; padding-top: 16px; border-top: 1px solid var(--rule); }
+  .strip p { margin: 0; font-size: var(--small); color: var(--ink-2); }
+  .strip .warn { color: var(--ink); font-weight: 500; }
+  .strip__actions { display: flex; flex-wrap: wrap; gap: 14px 20px; align-items: center; }
+
+  .section { padding: clamp(3rem, 6vw, 6rem) var(--pad-x) 0; }
+  .section__head { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th { text-align: left; font-weight: 500; font-size: var(--small); color: var(--ink-2); padding: 18px 16px 14px 0; border-bottom: 1px solid var(--rule); }
+  th:first-child, td:first-child { padding-left: 24px; }
+  td { padding: 18px 16px 18px 0; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+  tr:last-child td { border-bottom: 0; }
+  td.app { font-weight: 500; letter-spacing: -0.02em; }
+  .bar { display: flex; align-items: center; gap: 12px; }
+  .bar__track { display: block; width: 140px; height: 10px; flex: none; }
+  .bar i { display: block; width: 100%; height: 100%; border-radius: var(--radius-xs); background: var(--blue); transform-origin: left; transition: transform var(--t-long) var(--ease); }
+  .empty-row td { color: var(--ink-2); padding: 28px 24px; }
+
+  .band { position: relative; margin-top: clamp(4rem, 8vw, 8rem); background: var(--black); color: var(--white); overflow: hidden; }
+  .band canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+  .band__inner { position: relative; padding: clamp(4rem, 8vw, 7rem) var(--pad-x); max-width: var(--max-w); margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: start; }
+  .band .lede { color: rgba(255, 255, 255, 0.78); }
+  .insights { background: rgba(0, 0, 0, 0.72); backdrop-filter: blur(6px); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: var(--radius); padding: 28px 30px; min-height: 180px; }
+  .insights p { margin: 0 0 14px; line-height: 1.5; max-width: 62ch; }
+  .insights p:last-child { margin-bottom: 0; }
+  .insights .muted { color: rgba(255, 255, 255, 0.72); }
+  .band .bubble { margin-top: 2rem; }
+
+  .slab { background: var(--blue); color: var(--white); margin-top: 0; }
+  .slab__inner { max-width: var(--max-w); margin: 0 auto; padding: clamp(3rem, 6vw, 5rem) var(--pad-x) 2rem; display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 40px; }
+  .slab .slab__mark { color: var(--white); font-size: clamp(2.6rem, 6vw, 5.4rem); font-weight: 500; letter-spacing: -0.055em; line-height: 0.95; margin: 0; }
+  .slab h3 { font-size: 1.05rem; font-weight: 500; margin: 0 0 10px; }
+  .slab p { margin: 0; font-size: var(--small); color: rgba(255, 255, 255, 0.86); }
+  .slab__base { max-width: var(--max-w); margin: 0 auto; padding: 20px var(--pad-x) 28px; border-top: 1px solid rgba(255, 255, 255, 0.24); display: flex; justify-content: space-between; font-size: var(--small); color: rgba(255, 255, 255, 0.86); }
+
+  /* pixel wipe between lock screen and dashboard */
+  .wipe { position: fixed; inset: 0; z-index: 30; display: grid; pointer-events: none; }
+  .wipe span { background: var(--blue); box-shadow: 0 0 0 1px var(--blue); transform: scale(0); will-change: transform; transition: transform 0.42s var(--ease); transition-delay: var(--d); }
+  .wipe.cover span { transform: scale(1.1); }
+
+  @media (max-width: 900px) {
+    main { padding-top: 104px; }
+    .nav { top: 12px; }
+    .pill { min-height: 52px; padding: 0 14px; }
+    .bubble { height: 52px; }
+    .bubble__arrow { width: 52px; }
+    .nav .bubble__text { padding: 0 16px; }
+    .lock, .band__inner, .slab__inner { grid-template-columns: minmax(0, 1fr); }
+    .lock { min-height: 0; }
+    .lock .art { order: -1; max-width: 230px; }
+    .stage { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); row-gap: 0; }
+    .stage .art { grid-area: 1 / 1 / 2 / 3; width: 100%; max-width: 260px; margin: 0 auto; }
+    .stage__caption { grid-area: 2 / 1 / 3 / 3; margin-bottom: 18px; }
+    #rEyes { grid-area: 3 / 1; } #rJaw { grid-area: 3 / 2; } #rNeck { grid-area: 4 / 1; } #rPulse { grid-area: 4 / 2; }
+    .anno, .anno--l, .anno--r { text-align: left; padding: 18px 12px 18px 0; border-top: 1px solid var(--rule); }
+    .leaders { display: none; }
+    .anno--l .anno__note { margin-left: 0; }
+    .calib { grid-area: 3 / 1 / 5 / 3; text-align: left; }
+    .calib ul { justify-content: flex-start; }
+    .anno__value { font-size: clamp(2.2rem, 9vw, 3rem); }
+    .anno__value--word { font-size: clamp(1.6rem, 7vw, 2.4rem); }
+  }
+  @media (max-width: 560px) {
+    .nav .bubble { display: none; }
+    .pill { flex: 1; }
+    .brand span { display: none; }
+    .device { grid-template-columns: 40px minmax(0, 1fr); }
+    .device > :last-child { grid-column: 2; justify-self: start; }
+  }
+  @media (max-width: 700px) {
+    table, tbody, tr, td { display: block; }
+    thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    tr { padding: 14px 20px; border-bottom: 1px solid var(--rule); }
+    tr:last-child { border-bottom: 0; }
+    td, th:first-child, td:first-child { padding: 4px 0; border: 0; }
+    td:not(.app) { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    td:not(.app)::before { content: attr(data-label); font-size: var(--small); color: var(--ink-2); }
+    td.app { margin-bottom: 4px; }
+    .bar__track { width: 96px; }
+    .empty-row td { padding: 10px 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: 0.01ms !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<!--
+THESIS: The wearer's own head, drawn live in dithered blue pixels, is the interface: it tilts, blinks and clenches with them. Refuses the health-dashboard grid of rings and KPI tiles.
+OWN-WORLD: #F2F2F2 ground, #201D1D ink, white 12px panels, black bands; one ultramarine #0004F6 and nothing else; three-tone Bayer dither (ink, blue, pale); tight Host Grotesk display; blue bubble-arrow buttons; floating pill nav.
+STORY: Put the band on, see it found, connect; hold still 20 s; watch your head mirror you; learn which apps tense your jaw and dry your eyes; ask Claude why.
+FIRST VIEWPORT: Lock screen. Left: huge tight headline, then the nearby-headband list in one white panel with blue Connect bubbles. Right: the idle dithered head with radar rings while scanning. Nav pill across the top.
+FORM: pinned reference legencymedia.com (user override of direction roll c8293ab6); brief in docs/design/reference-legency.md.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+-->
+<header class="nav">
+  <div class="pill">
+    <a class="brand" href="#top" aria-label="Screen Body Coach">
+      <svg viewBox="0 0 10 10" aria-hidden="true" shape-rendering="crispEdges">
+        <path fill="#0004F6" d="M3 0h4v1h1v1h1v3H8v2H7v1H6v2H3V8H2V6H1V2h1V1h1z"/>
+        <path fill="#FFFFFF" d="M6 3h1v1H6z"/>
+      </svg>
+      <span>Screen Body Coach</span>
+    </a>
+    <p class="status" aria-live="polite"><span class="dot" id="dot"></span><span id="statusText">Starting…</span></p>
+  </div>
+  <button class="bubble" id="navAction" type="button">
+    <span class="bubble__text"><span class="bubble__label" id="navActionLabel">Scan again</span></span>
+    <span class="bubble__arrow" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><polyline points="18 8 18 18 8 18" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="18" y1="18" x2="5" y2="5" stroke="currentColor" stroke-width="1.5"/></svg>
+      <svg viewBox="0 0 24 24"><polyline points="18 8 18 18 8 18" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="18" y1="18" x2="5" y2="5" stroke="currentColor" stroke-width="1.5"/></svg>
+    </span>
+  </button>
+</header>
+
+<main id="top">
+  <!-- lock screen -->
+  <section class="wrap lock" id="lock" aria-labelledby="lockTitle">
+    <div class="lock__copy">
+      <h1 class="display roll" id="lockTitle">Put your headband on, <span class="accent">then connect it.</span></h1>
+      <p class="lede">We scan Bluetooth for EEG headbands nearby. The Muse 2 connects today; other headbands we find are listed as support coming.</p>
+      <div class="panel devices" aria-live="polite">
+        <div class="devices__head"><b>Headbands nearby</b><button class="uline" id="rescan" type="button">Scan again</button></div>
+        <div id="deviceList"></div>
+      </div>
+      <p class="fine" style="margin-top:1.25rem">Everything stays on this Mac. Only “Explain my patterns” sends per-app numbers to Claude.</p>
+    </div>
+    <div class="art" id="artHome"><canvas id="art" aria-hidden="true"></canvas></div>
+  </section>
+
+  <!-- dashboard -->
+  <div id="dash" hidden>
+    <section class="wrap stage-wrap" aria-label="Live readings">
+      <div class="stage" id="hero">
+        <svg class="leaders" id="leaders" aria-hidden="true"></svg>
+        <div class="anno anno--l" id="rPulse"><div class="anno__label">Pulse</div><div class="anno__value" id="hr">–<small>bpm</small></div><p class="anno__note">A resting pulse is usually 60 to 100.</p></div>
+        <div class="anno anno--l" id="rNeck"><div class="anno__label">Neck</div><div class="anno__value" id="tilt">–<small>° from upright</small></div><p class="anno__note" id="tiltNote">Leaning far forward loads the neck.</p></div>
+        <div class="art" id="artDash"></div>
+        <div class="anno anno--r" id="rEyes"><div class="anno__label">Eyes</div><div class="anno__value" id="blinks">–<small>blinks a minute</small></div><p class="anno__note" id="blinksNote">Measuring. Normal is about 15.</p></div>
+        <div class="anno anno--r" id="rJaw"><div class="anno__label">Jaw</div><div class="anno__value anno__value--word" id="jaw">–</div><p class="anno__note" id="jawNote">Clenches held over a second count.</p></div>
+        <div class="calib" id="calib" hidden>
+          <p class="calib__num num" id="calibNum">20<small>seconds</small></p>
+          <h2 class="display">Hold still while it learns you.</h2>
+          <ul><li>Sit upright</li><li>Jaw relaxed</li><li>Blink normally</li></ul>
+        </div>
+        <p class="stage__caption">This is you, live: it tilts with your head, blinks with you, and your jaw lights up when you clench.</p>
+      </div>
+      <div class="strip">
+        <p id="contact" aria-live="polite"></p>
+        <div class="strip__actions">
+          <button class="bubble bubble--white bubble--small" id="recalibrate" type="button">
+            <span class="bubble__text"><span class="bubble__label">Recalibrate for a new wearer</span></span>
+            <span class="bubble__arrow" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><polyline points="18 8 18 18 8 18" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="18" y1="18" x2="5" y2="5" stroke="currentColor" stroke-width="1.5"/></svg>
+              <svg viewBox="0 0 24 24"><polyline points="18 8 18 18 8 18" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="18" y1="18" x2="5" y2="5" stroke="currentColor" stroke-width="1.5"/></svg>
+            </span>
+          </button>
+          <button class="uline" id="disconnect" type="button">Disconnect</button>
+        </div>
+      </div>
+      <p class="fine" id="calNote" style="margin:10px 0 0"></p>
+    </section>
+
+    <section class="section" style="max-width:var(--max-w);margin:0 auto" aria-labelledby="whereTitle">
+      <div class="section__head">
+        <h2 class="display roll" id="whereTitle">Where it happens</h2>
+        <p class="fine" style="margin:0">The last 8 hours, split by the app you had in front. Longer bars are worse.</p>
+      </div>
+      <div class="panel" style="margin-top:2rem">
+        <table>
+          <thead><tr><th scope="col">App</th><th scope="col">Time</th><th scope="col">Blinks missed a minute</th><th scope="col">Clenches an hour</th><th scope="col">Neck angle</th></tr></thead>
+          <tbody id="apps"><tr class="empty-row"><td colspan="5">Nothing yet. Rows appear after half a minute in an app.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="band" aria-labelledby="meansTitle">
+      <canvas id="field" aria-hidden="true"></canvas>
+      <div class="band__inner">
+        <div>
+          <h2 class="display roll" id="meansTitle">What it means</h2>
+          <p class="lede">Sends the per-app numbers above (app names, blinks, clenches, neck angle, heart rate) to Claude, which points out your patterns and one thing to try for each.</p>
+          <button class="bubble" id="explain" type="button">
+            <span class="bubble__text"><span class="bubble__label" id="explainLabel">Explain my patterns</span></span>
+            <span class="bubble__arrow" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><polyline points="18 8 18 18 8 18" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="18" y1="18" x2="5" y2="5" stroke="currentColor" stroke-width="1.5"/></svg>
+              <svg viewBox="0 0 24 24"><polyline points="18 8 18 18 8 18" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="18" y1="18" x2="5" y2="5" stroke="currentColor" stroke-width="1.5"/></svg>
+            </span>
+          </button>
+        </div>
+        <div class="insights" id="insights" aria-live="polite"><p class="muted">Your patterns will appear here. Work for a few minutes first so there's something to read.</p></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="slab">
+  <div class="slab__inner">
+    <p class="slab__mark">Screen Body Coach</p>
+    <div><h3>What it reads</h3><p>Jaw clenching, blinking, head angle and pulse, from a Muse 2 headband. Not thoughts, and not a medical device.</p></div>
+    <div><h3>Your data</h3><p>Stays on this Mac in a local database. Claude only sees per-app numbers, and only when you ask.</p></div>
+  </div>
+  <div class="slab__base"><span>Working title, 2026</span><span id="footSession"></span></div>
+</footer>
+
+<div class="wipe" id="wipe" aria-hidden="true"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.4/dist/lenis.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const arrowSvg = '<svg viewBox="0 0 24 24"><polyline points="18 8 18 18 8 18" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="18" y1="18" x2="5" y2="5" stroke="currentColor" stroke-width="1.5"/></svg>';
+
+/* ---------- live ordered dither (8x8 Bayer, three tones + clear) ---------- */
+const BAYER = [0,48,12,60,3,51,15,63,32,16,44,28,35,19,47,31,8,56,4,52,11,59,7,55,40,24,36,20,43,27,39,23,
+               2,50,14,62,1,49,13,61,34,18,46,30,33,17,45,29,10,58,6,54,9,57,5,53,42,26,38,22,41,25,37,21].map(v => v / 64);
+const TONES_LIGHT = [[6, 6, 12, 255], [0, 4, 246, 255], [205, 204, 255, 255], [0, 0, 0, 0]];
+const TONES_DARK = [[0, 0, 0, 0], [0, 3, 176, 255], [0, 4, 246, 255], [205, 204, 255, 255]];
+const HEAD = new Path2D("M150 40 C 84 40 60 104 68 162 C 74 204 94 234 118 256 L 176 262 C 196 262 214 256 226 244 C 236 236 240 228 238 220 C 244 216 246 210 242 206 C 248 202 248 196 242 192 C 250 190 256 186 256 180 L 244 150 C 244 140 242 134 238 128 C 238 76 210 40 150 40 Z");
+const JAW = new Path2D("M130 190 C 150 186 172 196 184 214 C 178 232 160 240 140 236 C 126 224 124 204 130 190 Z");
+const NECK = new Path2D("M118 255 L112 345 L180 345 L176 262 Z");
+const EAR = new Path2D("M118 150 C 104 146 100 176 116 182");
+const BROW = new Path2D("M200 134 Q 214 126 228 134");
+const BAND = new Path2D("M86 118 C 130 96 190 98 236 118");
+const gray = v => { const c = Math.round(Math.max(0, Math.min(1, v)) * 255); return `rgb(${c},${c},${c})`; };
+
+class Dither {
+  constructor(canvas, cols, rows, tones, draw) {
+    this.canvas = canvas; this.cols = cols; this.rows = rows; this.tones = tones; this.draw = draw;
+    canvas.width = cols; canvas.height = rows;
+    this.ctx = canvas.getContext("2d");
+    this.src = document.createElement("canvas"); this.src.width = cols; this.src.height = rows;
+    this.sctx = this.src.getContext("2d", { willReadFrequently: true });
+    this.img = this.ctx.createImageData(cols, rows);
+    // fixed per-cell grain, so flat areas read as material instead of a clean fill
+    this.grain = new Float32Array(cols * rows).map((_, i) => ((Math.sin(i * 12.9898 + (i % cols) * 78.233) * 43758.5453) % 1 + 1) % 1 * 0.06 - 0.03);
+    this.pointer = null; this.visible = true; this.dirty = true; this.last = 0;
+    const toCell = e => { const r = canvas.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * cols, (e.clientY - r.top) / r.height * rows]; };
+    canvas.addEventListener("pointermove", e => { this.pointer = toCell(e); });
+    canvas.addEventListener("pointerleave", () => { this.pointer = null; });
+    new IntersectionObserver(([e]) => { this.visible = e.isIntersecting; }).observe(canvas);
+  }
+  resize(cols, rows) {
+    if (cols === this.cols && rows === this.rows) return;
+    this.cols = this.canvas.width = this.src.width = cols;
+    this.rows = this.canvas.height = this.src.height = rows;
+    this.img = this.ctx.createImageData(cols, rows);
+    this.grain = new Float32Array(cols * rows).map((_, i) => ((Math.sin(i * 12.9898 + (i % cols) * 78.233) * 43758.5453) % 1 + 1) % 1 * 0.06 - 0.03);
+  }
+  render(t) {
+    const { cols: W, rows: H, sctx } = this;
+    sctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.draw(sctx, W, H, t);
+    const src = sctx.getImageData(0, 0, W, H).data, out = this.img.data, tones = this.tones, grain = this.grain;
+    const p = reduced ? null : this.pointer;
+    for (let y = 0, i = 0; y < H; y++) {
+      for (let x = 0; x < W; x++, i++) {
+        let sx = x, sy = y, wave = 0;
+        if (p) {  // cursor ripple: displace the sample and lift brightness near the pointer
+          const dx = x - p[0], dy = y - p[1], d = Math.hypot(dx, dy);
+          wave = 0.6 * Math.sin(d * 0.42 - t * 3.2) * Math.exp(-d * 0.05);
+          if (d > 0.001) { sx += dx / d * wave * 2.2; sy += dy / d * wave * 2.2; }
+        }
+        const xi = Math.min(W - 1, Math.max(0, Math.round(sx))), yi = Math.min(H - 1, Math.max(0, Math.round(sy)));
+        let lum = src[(yi * W + xi) * 4] / 255;
+        if (lum < 0.97) lum += wave * 0.16 + grain[i];
+        const level = Math.max(0, Math.min(1, lum)) * 3, base = Math.floor(level);
+        const tone = tones[Math.min(3, base + (level - base > BAYER[(y & 7) * 8 + (x & 7)] ? 1 : 0))];
+        const o = i * 4; out[o] = tone[0]; out[o + 1] = tone[1]; out[o + 2] = tone[2]; out[o + 3] = tone[3];
+      }
+    }
+    this.ctx.putImageData(this.img, 0, 0);
+  }
+}
+
+// head scene: every field is set from the API
+const scene = { mode: "scan", tilt: 0, clenching: false, blinkAt: 0, stale: false, calibrating: false };
+function drawHead(c, W, H, t) {
+  c.fillStyle = "#fff"; c.fillRect(0, 0, W, H);
+  const s = H / 380, ox = (W - 320 * s) / 2;
+  c.setTransform(s, 0, 0, s, ox, 0);
+  const halo = c.createRadialGradient(165, 185, 30, 165, 185, 156);
+  const pulse = scene.mode === "live" ? 0 : 0.03 * Math.sin(t * 1.4);
+  halo.addColorStop(0, gray(0.80 + pulse)); halo.addColorStop(1, gray(1));
+  c.fillStyle = halo; c.fillRect(-40, -20, 400, 420);
+  if (scene.mode === "scan" || scene.mode === "connect") {  // radar rings
+    const speed = scene.mode === "connect" ? 150 : 55;
+    for (let k = 0; k < 3; k++) {
+      const r = ((t * speed + k * 50) % 150) + 6;    // ends at 156 units, inside the canvas on every side
+      c.strokeStyle = gray(0.2 + 0.5 * (r / 156) ** 2); c.lineWidth = 7;
+      c.beginPath(); c.arc(165, 190, r, 0, Math.PI * 2); c.stroke();
+    }
+  }
+  const breathe = scene.mode === "live" || reduced ? 1 : 1 + 0.008 * Math.sin(t * 1.3);
+  c.translate(150, 330); c.rotate(Math.min(45, Math.max(-20, scene.tilt)) * Math.PI / 180); c.scale(breathe, breathe); c.translate(-150, -330);
+  c.fillStyle = gray(0.84); c.fill(NECK);
+  const face = c.createLinearGradient(256, 150, 60, 150);
+  face.addColorStop(0, gray(0.9)); face.addColorStop(0.55, gray(0.72)); face.addColorStop(1, gray(0.5));
+  c.fillStyle = face; c.fill(HEAD);
+  if (scene.clenching) { c.fillStyle = gray(0.12 + 0.1 * Math.sin(t * 9)); c.fill(JAW); }
+  if (scene.calibrating) {  // a reading line sweeps down the head
+    c.save(); c.clip(HEAD);
+    c.fillStyle = gray(0.30); c.fillRect(40, 36 + ((t * 95) % 250), 240, 12);
+    c.restore();
+  }
+  c.lineJoin = "round"; c.lineCap = "round";
+  c.strokeStyle = gray(0.03); c.lineWidth = 4.5; c.stroke(HEAD); c.stroke(EAR); c.lineWidth = 4; c.stroke(BROW);
+  const blinking = performance.now() - scene.blinkAt < 170;
+  c.fillStyle = gray(blinking ? 0.6 : 0.02);
+  c.beginPath(); c.ellipse(214, 146, 10, blinking ? 2 : 6.5, 0, 0, Math.PI * 2); c.fill();
+  c.strokeStyle = gray(0.333); c.lineWidth = 11; c.stroke(BAND);
+  if (scene.stale) { c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = "rgba(255,255,255,0.72)"; c.fillRect(0, 0, W, H); }
+}
+
+// dark band: a slow drifting field of blue cells, fading out behind the text
+function drawField(c, W, H, t) {
+  const img = c.createImageData(W, H), d = img.data;
+  for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i += 4) {
+    const v = 0.5 + 0.22 * Math.sin(x * 0.045 + t * 0.25) + 0.18 * Math.sin(y * 0.11 - t * 0.18 + Math.sin(x * 0.021 + t * 0.1) * 2)
+            + 0.1 * Math.sin((x + y) * 0.07 + t * 0.4);
+    const edge = Math.min(1, Math.max(0, (x - W * 0.25) / (W * 0.5)));
+    const g = Math.round(Math.max(0, Math.min(1, v * 0.9 * edge - 0.08)) * 255);
+    d[i] = d[i + 1] = d[i + 2] = g; d[i + 3] = 255;
+  }
+  c.putImageData(img, 0, 0);
+}
+
+const head = new Dither($("art"), 140, 160, TONES_LIGHT, drawHead);
+const field = new Dither($("field"), 240, 96, TONES_DARK, drawField);
+new ResizeObserver(([e]) => {  // 6 px square cells whatever the band's shape
+  const { width, height } = e.contentRect;
+  if (width && height) field.resize(Math.max(40, Math.round(width / 6)), Math.max(20, Math.round(height / 6)));
+}).observe($("field"));
+function loop(now) {
+  const t = now / 1000;
+  for (const d of [head, field]) {
+    if (!d.visible || (d === field && $("dash").hidden)) continue;
+    if (now - d.last < 33) continue;               // ~30 fps is plenty for 4 px cells
+    if (reduced && !d.dirty) continue;              // reduced motion: redraw on data changes only
+    d.last = now; d.dirty = false; d.render(t);
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ---------- character roll on headings ---------- */
+function armRoll(el) {
+  if (reduced) return;
+  let i = 0;
+  const wrapText = node => [...node.childNodes].forEach(n => {
+    if (n.nodeType === 3) {
+      const frag = document.createDocumentFragment();
+      n.textContent.split(/(\s+)/).forEach(part => {
+        if (!part) return;
+        if (/^\s+$/.test(part)) { frag.append(document.createTextNode(part)); return; }
+        const w = document.createElement("span"); w.className = "word"; w.setAttribute("aria-hidden", "true");
+        for (const ch of part) { const s = document.createElement("span"); s.className = "char"; s.style.setProperty("--i", i++); s.textContent = ch; w.append(s); }
+        frag.append(w);
+      });
+      n.replaceWith(frag);
+    } else if (n.nodeType === 1) wrapText(n);
+  });
+  el.setAttribute("aria-label", el.textContent.trim());
+  wrapText(el);
+  el.classList.add("armed");
+  new IntersectionObserver(([e], obs) => { if (e.isIntersecting) { el.classList.add("in"); obs.disconnect(); } }, { threshold: 0.4 }).observe(el);
+}
+document.querySelectorAll(".roll").forEach(armRoll);
+
+/* ---------- smooth scroll ---------- */
+if (!reduced && window.Lenis) {
+  const lenis = new Lenis({ lerp: 0.12 });
+  (function raf(time) { lenis.raf(time); requestAnimationFrame(raf); })(0);
+}
+
+/* ---------- pixel wipe between views ---------- */
+const COLS = 14, ROWS = 9;
+$("wipe").style.gridTemplate = `repeat(${ROWS}, 1fr) / repeat(${COLS}, 1fr)`;
+for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+  const s = document.createElement("span");
+  s.style.setProperty("--d", `${((c + r) / (COLS + ROWS)) * 0.34 + Math.random() * 0.12}s`);
+  $("wipe").append(s);
+}
+let view = "lock";
+function show(next) {
+  if (next === view) return;
+  view = next;
+  const swap = () => {
+    $("lock").hidden = next !== "lock";
+    $("dash").hidden = next !== "dash";
+    (next === "dash" ? $("artDash") : $("artHome")).prepend($("art"));
+    if (next === "lock") renderDevices();  // drop any stale "Connecting…" row from the last session
+    scrollTo(0, 0);
+  };
+  if (reduced) { swap(); return; }
+  $("wipe").classList.add("cover");
+  setTimeout(() => { swap(); $("wipe").classList.remove("cover"); }, 820);
+}
+
+/* ---------- API ---------- */
+const detail = r => r.json().catch(() => ({ detail: `Server error ${r.status}. Check the terminal running the coach.` }));
+async function post(url, body) {
+  const r = await fetch(url, { method: "POST", headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
+  return { ok: r.ok, body: r.ok ? await r.json() : await detail(r) };
+}
+
+/* ---------- lock screen ---------- */
+let devices = null, scanning = false, connectingTo = null, lastError = null;
+const glyph = on => `<svg viewBox="0 0 12 12" aria-hidden="true" shape-rendering="crispEdges"><path fill="${on ? "#0004F6" : "#B9B6B3"}" d="M2 4h1V3h1V2h4v1h1v1h1v3H9v1H8V5H4v3H3V7H2z"/><path fill="${on ? "#0004F6" : "#B9B6B3"}" d="M2 8h2v2H2zM8 8h2v2H8z"/></svg>`;
+const signal = rssi => rssi == null ? "" : rssi > -60 ? " · strong signal" : rssi > -75 ? " · good signal" : " · weak signal, move closer";
+function renderDevices() {
+  const list = $("deviceList");
+  if (scanning && !devices) {
+    list.innerHTML = [0, 1].map(() => `<div class="device"><div class="device__glyph"></div><div><div class="skeleton" style="width:46%"></div><div class="skeleton" style="width:68%;margin-top:10px"></div></div><div></div></div>`).join("")
+      + `<p class="devices__note">Looking for headbands…</p>`;
+    return;
+  }
+  let html = (devices || []).map(d => {
+    const busy = connectingTo === d.name;
+    const action = d.supported
+      ? `<button class="bubble bubble--small" type="button" data-connect="${esc(d.name)}" ${connectingTo ? "disabled" : ""}><span class="bubble__text"><span class="bubble__label">${busy ? "Connecting…" : "Connect"}</span></span><span class="bubble__arrow" aria-hidden="true">${arrowSvg}${arrowSvg}</span></button>`
+      : `<span class="tag">Support coming</span>`;
+    return `<div class="device ${d.supported ? "" : "device--off"}"><div class="device__glyph">${glyph(d.supported)}</div>
+      <div><div class="device__name">${esc(d.name)}</div><div class="device__meta">${esc(d.brand)}${d.simulated ? " · for testing" : esc(signal(d.rssi))}</div></div>${action}</div>`;
+  }).join("");
+  if (devices && !devices.length) {
+    html = `<p class="devices__note"><strong>No headbands found.</strong> Turn the Muse on (hold its button until the lights sweep), keep it near this Mac, and scan again.</p>`;
+  }
+  if (lastError) html += `<p class="devices__note error"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path fill="currentColor" d="M6 1h2v8H6zM6 11h2v2H6z"/></svg><span>${esc(lastError)}</span></p>`;
+  list.innerHTML = html;
+  list.querySelectorAll("[data-connect]").forEach(b => b.onclick = () => connect(b.dataset.connect));
+}
+async function runScan() {
+  if (scanning || connectingTo) return;
+  scanning = true; lastError = null; scene.mode = "scan"; renderDevices(); syncNav();
+  const r = await post("/api/scan").catch(() => ({ ok: false, body: { detail: "Couldn't reach the coach server." } }));
+  scanning = false;
+  devices = r.ok ? r.body.devices : [];
+  lastError = r.ok ? r.body.error : r.body.detail;
+  renderDevices(); syncNav();
+}
+async function connect(name) {
+  connectingTo = name; lastError = null; scene.mode = "connect"; renderDevices(); syncNav();
+  const r = await post("/api/connect", { name });
+  if (!r.ok) { connectingTo = null; lastError = r.body.detail; scene.mode = "scan"; renderDevices(); syncNav(); }
+}
+$("rescan").onclick = runScan;
+
+/* ---------- nav ---------- */
+let state = { phase: "locked" };
+function syncNav() {
+  const s = state, label = $("navActionLabel");
+  const dev = s.device ? s.device.name + (s.device.simulated ? " (simulated)" : "") : "";
+  let text = "No headband connected", live = false;
+  if (s.phase === "connecting" || connectingTo) text = `Connecting to ${connectingTo || dev}…`;
+  else if (s.phase === "connected") {
+    if (s.calibrating) text = `${dev} · calibrating`;
+    else if (!s.live) text = `${dev} · not sending data`;
+    else { text = `${dev} · ${s.app || "your Mac"}`; live = true; }
+    if (s.demo) text += " · demo timers";
+  } else if (scanning) text = "Scanning Bluetooth…";
+  $("statusText").textContent = text;
+  $("dot").classList.toggle("live", live);
+  $("footSession").textContent = s.phase === "connected" ? `Connected to ${dev}` : "";
+  const onDash = s.phase === "connected";
+  label.textContent = onDash ? "Explain my patterns" : scanning ? "Scanning…" : "Scan again";
+  $("navAction").disabled = !onDash && (scanning || !!connectingTo);
+}
+$("navAction").onclick = () => {
+  if (state.phase === "connected") { $("meansTitle").scrollIntoView({ behavior: reduced ? "auto" : "smooth" }); explain(); }
+  else runScan();
+};
+
+/* ---------- dashboard ---------- */
+let lastBlink = 0;
+function setValue(el, main, unit) { el.innerHTML = `${esc(main)}${unit ? `<small>${esc(unit)}</small>` : ""}`; }
+function renderDash(s) {
+  const lim = s.limits || { low_blinks: 7, slouch_deg: 15 };
+  const calibrating = !!s.calibrating;
+  $("calib").hidden = !calibrating; $("hero").classList.toggle("calibrating", calibrating);
+  if (calibrating && s.calibrate_until) { const n = Math.max(0, Math.round(s.calibrate_until - Date.now() / 1000)); setValue($("calibNum"), n, n === 1 ? "second" : "seconds"); }
+  $("hero").classList.toggle("stale", !s.live && !calibrating);
+  $("recalibrate").disabled = calibrating;
+  $("calNote").textContent = calibrating ? "" : (s.calibration_note || "");
+
+  const loose = s.loose_sensors;
+  let contact = "";
+  if (s.error) contact = `Problem: ${s.error}`;
+  else if (!s.live && !calibrating) contact = "The headband isn't sending data. Check it's on, charged and close by.";
+  else if (loose && loose.length) contact = `Poor sensor contact: ${loose.join(", ")}. Adjust the band.`;
+  else if (loose) contact = "Sensor contact is good.";
+  $("contact").textContent = contact;
+  $("contact").className = (s.error || (loose && loose.length) || (!s.live && !calibrating)) ? "warn" : "";
+
+  if (s.blink_rate != null) {
+    const r = Math.round(s.blink_rate);
+    setValue($("blinks"), r, "blinks a minute");
+    $("blinksNote").textContent = r < lim.low_blinks ? "Low. Your eyes are drying out." : r < 12 ? "A bit low. Normal is about 15." : "Healthy.";
+    $("rEyes").classList.toggle("alert", r < lim.low_blinks);
+  } else { setValue($("blinks"), "–", "blinks a minute"); $("blinksNote").textContent = "Measuring. Normal is about 15."; $("rEyes").classList.remove("alert"); }
+
+  setValue($("jaw"), s.live ? (s.clenching ? "Clenching" : "Relaxed") : "–");
+  $("rJaw").classList.toggle("alert", !!s.clenching);
+  const n = s.clenches_hour || 0;
+  $("jawNote").textContent = `${n} clench${n === 1 ? "" : "es"} in the last hour, ${Math.round(s.clench_seconds_hour || 0)} s total.`;
+
+  if (s.tilt == null) { setValue($("tilt"), "–", "° from upright"); $("tiltNote").textContent = "Leaning far forward loads the neck."; $("rNeck").classList.remove("alert"); }
+  else {
+    const t = Math.round(s.tilt);
+    setValue($("tilt"), t, "° from upright");
+    $("tiltNote").textContent = t > lim.slouch_deg ? "Head's forward. Sit back, chin in." : "Upright.";
+    $("rNeck").classList.toggle("alert", t > lim.slouch_deg);
+  }
+  setValue($("hr"), s.hr ? Math.round(s.hr) : "–", "bpm");
+
+  // the dithered head mirrors the wearer
+  scene.mode = "live"; scene.tilt = s.tilt || 0; scene.clenching = !!s.clenching && !!s.live;
+  scene.stale = !s.live && !calibrating; scene.calibrating = calibrating;
+  if (s.last_blink && s.last_blink !== lastBlink) { lastBlink = s.last_blink; scene.blinkAt = performance.now(); }
+  head.dirty = true;
+  drawLeaders();
+}
+
+// where each reading lives on the drawn head (drawing units, before tilt)
+const ANCHORS = { rEyes: [214, 146], rJaw: [156, 214], rNeck: [118, 300], rPulse: [92, 116] };
+function drawLeaders() {
+  const svg = $("leaders"), stage = $("hero"), canvas = $("art");
+  if ($("dash").hidden || getComputedStyle(svg).display === "none") return;
+  if (stage.classList.contains("calibrating")) { svg.innerHTML = ""; return; }
+  const sr = stage.getBoundingClientRect(), cr = canvas.getBoundingClientRect();
+  const s = 160 / 380, ox = (140 - 320 * s) / 2, cell = cr.width / 140;
+  const a = Math.min(45, Math.max(-20, scene.tilt)) * Math.PI / 180, cos = Math.cos(a), sin = Math.sin(a);
+  const toStage = ([x, y]) => {  // rotate about the neck pivot like drawHead, then drawing units -> page px
+    const dx = x - 150, dy = y - 330, rx = 150 + dx * cos - dy * sin, ry = 330 + dx * sin + dy * cos;
+    return [cr.left - sr.left + (ox + rx * s) * cell, cr.top - sr.top + ry * s * cell];
+  };
+  svg.setAttribute("viewBox", `0 0 ${sr.width} ${sr.height}`);
+  svg.innerHTML = Object.entries(ANCHORS).map(([id, pt]) => {
+    const el = $(id), r = el.getBoundingClientRect(), left = el.classList.contains("anno--l");
+    const value = el.querySelector(".anno__value").getBoundingClientRect();
+    const x0 = (left ? r.right : r.left) - sr.left, y0 = value.top + value.height / 2 - sr.top;
+    const x1 = x0 + (left ? 18 : -18), [px, py] = toStage(pt);
+    return `<g class="${el.classList.contains("alert") ? "alert" : ""}"><polyline points="${x0},${y0} ${x1},${y0} ${px},${py}"/><rect x="${px - 3.5}" y="${py - 3.5}" width="7" height="7"/></g>`;
+  }).join("");
+}
+addEventListener("resize", drawLeaders);
+
+function bar(value, max) {
+  const k = Math.max(0.02, Math.min(1, value / max));
+  return `<div class="bar"><span class="bar__track"><i style="transform:scaleX(${k})"></i></span><span>${esc(value)}</span></div>`;
+}
+async function pollApps() {
+  if (state.phase !== "connected") return;
+  try {
+    const rows = await (await fetch("/api/apps")).json();
+    $("apps").innerHTML = rows.length ? rows.map(r => `<tr>
+        <td class="app">${esc(r.app)}</td>
+        <td data-label="Time">${Math.round(r.minutes)} min</td>
+        <td data-label="Blinks missed a minute">${bar(Math.max(0, 15 - Math.round(r.blinks_per_min)), 15)}</td>
+        <td data-label="Clenches an hour">${bar(Math.round(r.clenches_per_hour), 30)}</td>
+        <td data-label="Neck angle">${bar(Math.round(r.avg_tilt), 30)}</td></tr>`).join("")
+      : `<tr class="empty-row"><td colspan="5">Nothing yet. Rows appear after half a minute in an app.</td></tr>`;
+  } catch { /* the nav status already reports a lost server */ }
+}
+
+async function explain() {
+  const btn = $("explain");
+  if (btn.disabled) return;
+  btn.disabled = true; $("explainLabel").textContent = "Reading your data…";
+  const r = await post("/api/insights").catch(() => ({ ok: false, body: { detail: "Couldn't reach the coach server." } }));
+  const text = r.ok ? r.body.text : r.body.detail;
+  $("insights").innerHTML = text.split(/\n+/).filter(Boolean).map(p => `<p class="${r.ok ? "" : "muted"}">${esc(p)}</p>`).join("");
+  btn.disabled = false; $("explainLabel").textContent = "Explain my patterns";
+}
+$("explain").onclick = explain;
+$("recalibrate").onclick = () => { $("recalibrate").disabled = true; post("/api/calibrate"); };
+$("disconnect").onclick = async () => { await post("/api/disconnect"); devices = null; runScan(); };
+
+/* ---------- state polling ---------- */
+async function pollState() {
+  try {
+    const r = await fetch("/api/state");
+    if (!r.ok) throw new Error((await detail(r)).detail);
+    state = await r.json();
+    if (state.phase === "connected") { connectingTo = null; show("dash"); renderDash(state); }
+    else {
+      if (state.phase === "locked" && state.error && connectingTo) { connectingTo = null; lastError = state.error; scene.mode = "scan"; renderDevices(); }
+      show("lock");
+      if (state.phase === "locked" && !connectingTo) { scene.mode = "scan"; scene.tilt = 0; scene.clenching = false; scene.stale = false; scene.calibrating = false; }
+      if (state.phase === "locked" && devices === null && !scanning) runScan();  // e.g. the session ended while this page showed the dashboard
+    }
+    syncNav();
+  } catch (e) {
+    $("statusText").textContent = e.message && !e.message.startsWith("Failed") ? e.message : "Lost the coach server. Is it still running?";
+    $("dot").classList.remove("live");
+    $("hero").classList.add("stale");
+  }
+}
+setInterval(pollState, 400);
+setInterval(pollApps, 5000);
+pollState().then(() => { if (state.phase !== "connected") runScan(); });
+</script>
+</body>
+</html>

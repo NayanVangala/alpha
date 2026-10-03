@@ -1,0 +1,113 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Alpha's design system (DESIGN.md): studio grey, warm ink, one ultramarine, Host Grotesk. */
+:root {
+  --background: #f2f2f2;
+  --foreground: #201d1d;
+  --card: #ffffff;
+  --card-foreground: #201d1d;
+  --popover: #ffffff;
+  --popover-foreground: #201d1d;
+  --primary: #0004f6;
+  --primary-foreground: #ffffff;
+  --secondary: #ffffff;
+  --secondary-foreground: #201d1d;
+  --muted: #e6e5e4;
+  --muted-foreground: #57524f;
+  --accent: #cdccff;
+  --accent-foreground: #201d1d;
+  --destructive: #201d1d;
+  --border: rgba(32, 29, 29, 0.12);
+  --input: rgba(32, 29, 29, 0.12);
+  --ring: #0004f6;
+  --pad-x: clamp(16px, 2.9vw, 50px);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+@theme {
+  --font-sans: "Host Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --color-ultramarine: #0004f6;
+  --color-ultramarine-deep: #0003b0;
+  --color-pale-violet: #cdccff;
+  --color-idle: #b9b6b3;
+
+  --radius-xs: 2px;
+  --radius-sm: 8px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 12px;
+
+  /* type scale */
+  --text-display: clamp(2.9rem, 5.05vw, 5.44rem);
+  --text-headline: clamp(2.25rem, 3.76vw, 4.06rem);
+  --text-title: clamp(1.6rem, 2.14vw, 2.31rem);
+  --text-countdown: clamp(5.5rem, 11vw, 10rem);
+  --text-body: clamp(1.05rem, 1.22vw, 1.3125rem);
+  --text-label: 0.9375rem;
+  --text-tag: 0.8125rem;
+
+  --ease-alpha: cubic-bezier(0.625, 0.05, 0, 1);
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  html, body { @apply bg-background text-foreground font-sans antialiased; }
+  body { min-height: 100vh; font-size: var(--text-body); line-height: 1.4; }
+}
+
+/* the solid ultramarine page start, painted before the app loads (see index.html) */
+#boot { position: fixed; inset: 0; z-index: 60; background: #0004f6; }
+
+/* page change: ultramarine, then a ragged sweep of blocks (Wipe.tsx) */
+.wipe { position: fixed; inset: 0; z-index: 50; display: grid; pointer-events: none; }
+.wipe span { background: #0004f6; box-shadow: 0 0 0 1px #0004f6; transform: scale(0); transition: transform 0.3s cubic-bezier(0.625, 0.05, 0, 1) var(--d); }
+.wipe.cover span { transform: scale(1.02); transition: none; }
+
+/* BorderBeam.tsx: only the ring between the padding and the edge shows */
+.beam-frame {
+  position: absolute; inset: 0; z-index: 1; overflow: hidden; border-radius: inherit; pointer-events: none;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* toasts (sonner): ink, or ultramarine for help */
+.alpha-toast { background: #201d1d !important; color: #fff !important; border: 0 !important; border-radius: 8px !important; font: 400 var(--text-body) / 1.4 var(--font-sans) !important; padding: 14px 22px !important; width: max-content !important; max-width: min(720px, calc(100vw - 32px)) !important; }
+.alpha-toast--alert { background: #0004f6 !important; font-weight: 600 !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .wipe { display: none; }
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+/* "Finding ways to say it…": a light running through the words while the AI thinks */
+.shimmer {
+  background: linear-gradient(90deg, #0004f6 0%, #0004f6 35%, #cdccff 50%, #0004f6 65%, #0004f6 100%) 0 0 / 250% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: shimmer 1.8s linear infinite;
+}
+@keyframes shimmer { to { background-position: -250% 0; } }
+
+/* the floating window (Hud.tsx) draws its own rounded card on a see-through window */
+html.hud, html.hud body { background: transparent; min-height: 0; }
