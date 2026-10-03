@@ -1,10 +1,26 @@
 import type { CameraBrake } from "@/hooks/useCameraBrake"
 import { isNarrating, setNarrating } from "@/lib/speech"
-import { Fragment, type MouseEvent, type ReactNode, useState } from "react"
+import { Fragment, type MouseEvent, type ReactNode, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
 import type { BoardState } from "@/lib/api"
 import { cn } from "@/lib/utils"
+
+/** The blink light: flashes each time the headband sees a blink, so you can see it knows. */
+export function BlinkLight({ n }: { n: number }) {
+  const prev = useRef<number | null>(null)
+  const [flash, setFlash] = useState(0)
+  useEffect(() => {
+    if (prev.current !== null && n > prev.current) setFlash((f) => f + 1)
+    prev.current = n
+  }, [n])
+  return (
+    <span className="inline-flex items-center gap-1.5 tabular-nums" title="Flashes each time Alpha sees you blink">
+      <i key={flash} className={cn("inline-block size-2.5 rounded-full bg-ultramarine", flash > 0 ? "blink-flash" : "opacity-30")} />
+      blinks {n}
+    </span>
+  )
+}
 
 /** A quiet underlined text button. It drops focus after a click, so Space (a bite) can't press it again. */
 function TextButton({ onClick, ...props }: { onClick: () => void; children: ReactNode; pressed?: boolean; disabled?: boolean; title?: string }) {
@@ -31,13 +47,14 @@ type HeaderProps = {
   live: boolean
   listen: { supported: boolean; listening: boolean; toggle: () => void }
   nerdOpen: boolean
+  blinks: number
   camera: CameraBrake
   onRecalibrate: () => void
   onDisconnect: () => void
   onNerd: () => void
 }
 
-export function Header({ status, live, listen, nerdOpen, camera, onRecalibrate, onDisconnect, onNerd }: HeaderProps) {
+export function Header({ status, live, listen, nerdOpen, blinks, camera, onRecalibrate, onDisconnect, onNerd }: HeaderProps) {
   const [narrating, setNarr] = useState(isNarrating)
   return (
     <header className="flex items-center justify-between gap-4 px-[var(--pad-x)] pt-5">
@@ -48,6 +65,7 @@ export function Header({ status, live, listen, nerdOpen, camera, onRecalibrate, 
       <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-label text-muted-foreground" aria-live="polite">
         <span className={cn("size-2 rounded-xs", live ? "bg-ultramarine" : "bg-idle")} />
         <span>{status}</span>
+        <BlinkLight n={blinks} />
         <TextButton
           onClick={listen.toggle}
           pressed={listen.listening}

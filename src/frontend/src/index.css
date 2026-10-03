@@ -114,3 +114,7 @@ html.hud, html.hud body { background: transparent; min-height: 0; }
 
 @keyframes beat { 0% { transform: scale(1); opacity: 1; } 14% { transform: scale(1.9); opacity: 0.55; } 100% { transform: scale(1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .beat { animation: none !important; } }
+
+@keyframes blinkflash { 0% { transform: scale(2.6); opacity: 1; } 100% { transform: scale(1); opacity: 0.3; } }
+.blink-flash { animation: blinkflash 0.4s ease-out; }
+@media (prefers-reduced-motion: reduce) { .blink-flash { animation: none; opacity: 1; } }

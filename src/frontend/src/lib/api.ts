@@ -18,6 +18,8 @@ export type Headband = {
   battery: number | null
   /** pulse from the headband's optical sensor, beats per minute */
   hr: number | null
+  /** blinks seen since connecting: the page flashes its blink light each time this goes up */
+  blink_n: number
 }
 /** One agent decision: what, yes / no / stop, and what decided it (the keyboard stand-in counts as keys). */
 export type Decision = { what: string; verdict: "yes" | "no" | "stop"; by: "brain" | "muscle" | "silence" | "keys" | "camera" | "presence" | "head" }

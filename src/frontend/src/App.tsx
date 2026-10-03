@@ -86,6 +86,7 @@ export default function App() {
             live={!lost && !!h?.live}
             listen={listen}
             nerdOpen={nerdOpen}
+            blinks={h?.blink_n ?? 0}
             camera={camera}
             onRecalibrate={() => void api.calibrate()}
             onDisconnect={() => void api.disconnect()}

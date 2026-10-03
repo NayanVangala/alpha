@@ -14,6 +14,7 @@ import { useDevices } from "@/hooks/useDevices"
 import { useKeys } from "@/hooks/useKeys"
 import { api, type BoardState, type Gesture, type Headband } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { BlinkLight } from "@/components/Chrome"
 import { batteryText } from "./App"
 
 const EASE = [0.625, 0.05, 0, 1] as const
@@ -68,6 +69,7 @@ export function Hud() {
             <span className={cn("size-2 rounded-xs", !lost && s?.headband.live ? "bg-ultramarine" : "bg-idle")} />
             {lost ? "no board" : !open ? "not connected" : s?.brake ? "braked" : s?.claude_code ? "driving Claude" : "live"}
             {open && s?.headband.battery != null && batteryText(s.headband.battery).replace(" · battery ", " · ")}
+            {open && <BlinkLight n={s?.headband.blink_n ?? 0} />}
             <button
               type="button"
               aria-pressed={camera.state === "on"}

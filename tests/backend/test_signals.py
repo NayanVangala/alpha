@@ -252,3 +252,26 @@ def test_signal_quality_calls_the_connection_strong_ok_weak_or_lost():
     assert signal_quality(good, 150, 100, True)["overall"] == "weak"  # packets are dropping
     assert signal_quality(good, 256, 5000, True)["overall"] == "lost"
     assert signal_quality(good, 256, 100, False)["overall"] == "lost"
+
+
+def test_fast_blink_fires_within_a_tenth_of_a_second_and_ignores_slow_drift():
+    from src.backend.signals import FastBlink
+
+    fs = 256
+    rng = np.random.default_rng(1)
+    t = np.arange(fs * 6) / fs
+    base = rng.normal(0, 4, (2, t.size))
+    blink = 150 * np.exp(-((t - 3.0) / 0.07) ** 2)  # a 150 uV blink at 3.0 s, about 0.15 s wide
+    d = FastBlink(threshold_uv=60, sign=1)
+    fired_at = None
+    for i in range(0, t.size, 16):  # fed in 16-sample chunks like the live loop
+        n = d.feed(base[0, i : i + 16] + blink[i : i + 16], base[1, i : i + 16] + blink[i : i + 16])
+        if n and fired_at is None:
+            fired_at = (i + 16) / fs
+    assert fired_at is not None and 3.0 < fired_at < 3.25  # about 0.1 s after the peak, not 0.5 s
+    drift = np.tile(80 * np.sin(2 * np.pi * 0.05 * t), (2, 1))  # a slow electrode wander is no blink
+    d = FastBlink(threshold_uv=60, sign=1)
+    assert sum(d.feed(drift[0, i : i + 16], drift[1, i : i + 16]) for i in range(0, t.size, 16)) == 0
+    d = FastBlink(threshold_uv=60, sign=1)
+    two = blink + 150 * np.exp(-((t - 3.15) / 0.07) ** 2)  # two inside the refractory gap count once
+    assert sum(d.feed(base[0, i : i + 16] + two[i : i + 16], base[1, i : i + 16] + two[i : i + 16]) for i in range(0, t.size, 16)) == 1

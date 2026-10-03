@@ -97,6 +97,51 @@ class BlinkDetector:
         return new
 
 
+class FastBlink:
+    """A blink the moment it happens (about 0.1 s), for the on-screen blink light.
+
+    BlinkDetector waits half a second so a zero-phase filter can confirm a peak: right for counting blinks, too slow
+    to feel live. This follows the same rule (AF7+AF8 average, 0.5-10 Hz, calibrated height and polarity) with a
+    causal filter, and confirms a blink as it falls back. It only drives the display; gestures use BlinkDetector.
+    """
+
+    MIN_S, MAX_S, REFRACTORY_S = 0.04, 0.5, 0.3
+
+    def __init__(self, threshold_uv=90.0, sign=1, fs=EEG_FS):
+        self.threshold_uv, self.sign, self.fs = threshold_uv, sign, fs
+        self.sos = butter(2, [0.5, 10], btype="band", fs=fs, output="sos")
+        self.zi = None
+        self.start = None  # sample index where the current deflection crossed the threshold
+        self.peak = 0.0
+        self.n_seen = 0
+        self.last = -(10**9)
+
+    def feed(self, af7, af8):
+        """How many blinks finished in this chunk."""
+        x = (finite(af7) + finite(af8)) / 2
+        if x.size == 0:
+            return 0
+        if self.zi is None:
+            self.zi = sosfilt_zi(self.sos) * x[0]  # start settled: the electrode's DC offset isn't a blink
+        y, self.zi = sosfilt(self.sos, x, zi=self.zi)
+        y = self.sign * y
+        n = 0
+        for v in y:
+            self.n_seen += 1
+            if self.start is None:
+                if v > self.threshold_uv:
+                    self.start, self.peak = self.n_seen, v
+                continue
+            self.peak = max(self.peak, v)
+            lasted = (self.n_seen - self.start) / self.fs
+            if v < 0.5 * self.peak or lasted > self.MAX_S:  # falling back (or a long drift, which isn't a blink)
+                if self.MIN_S <= lasted <= self.MAX_S and (self.n_seen - self.last) / self.fs > self.REFRACTORY_S:
+                    n += 1
+                    self.last = self.n_seen
+                self.start = None
+        return n
+
+
 class GlanceDetector:
     """Deliberate left/right glances = the two forehead channels (AF7, AF8) swinging opposite ways.
 

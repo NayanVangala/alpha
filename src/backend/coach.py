@@ -19,6 +19,7 @@ from .signals import (
     BlinkDetector,
     ClenchDetector,
     EyesClosedDetector,
+    FastBlink,
     NodShakeDetector,
     PostureTracker,
     band_powers,
@@ -104,6 +105,7 @@ class Coach:
         self.muscle, self.events, self.fs_log = deque(), deque(), deque()
         self.ppg = deque(maxlen=12 * PPG_FS)
         self.hist_at = 0.0
+        self.fast = FastBlink()  # the live blink light; recalibrated to this wearer in calibrate()
         self.hist = {k: deque(maxlen=HIST_N) for k in ("alpha", "spec", "bands", "contact", "fs", "hr", "tilt")}
         self.gyro_tail = deque(maxlen=6 * IMU_FS)
         now = clock()
@@ -120,6 +122,7 @@ class Coach:
             "calibration_note": "",
             "blink_rate": None,
             "last_blink": 0.0,
+            "blink_n": 0,
             "clenching": False,
             "tilt": 0.0,
             "hr": None,
@@ -139,6 +142,7 @@ class Coach:
     def use_calibration(self, cal):
         """Start from a saved calibration instead of a fresh 20 s one (the wearer can still recalibrate)."""
         self.blinks = BlinkDetector(*cal["blink"])
+        self.fast = FastBlink(*cal["blink"])
         self.clench = ClenchDetector(cal["clench"])
         self.posture.upright = np.array(cal["upright"], float)
         self.eyes_threshold = cal["eyes"]
@@ -200,6 +204,7 @@ class Coach:
             if clench.rest_burst_frac > NOISY_REST_FRAC:
                 note += " The jaw sensors were noisy while you sat still: relax your jaw, make sure the band is snug and damp, then recalibrate."
         self.blinks, self.clench, self.posture = blinks, clench, posture
+        self.fast = FastBlink(blinks.threshold_uv, blinks.sign)
         self.eyes_threshold = eyes.threshold
         self.gestures = Gestures(clench.threshold_uv, self.eyes_threshold)
         self.blink_times.clear()
@@ -227,6 +232,7 @@ class Coach:
             self._lost("Headband stopped sending")
             # restart the streaming filters (keeping calibration) so the gap can't look like a blink
             self.blinks = BlinkDetector(self.blinks.threshold_uv, self.blinks.sign)
+            self.fast = FastBlink(self.blinks.threshold_uv, self.blinks.sign)
             self.clench = ClenchDetector(self.clench.threshold_uv)
             self.gestures = Gestures(self.clench.threshold_uv, self.eyes_threshold)
         self.live_since = self.slouch_since = None
@@ -290,6 +296,7 @@ class Coach:
             self._presence(now, ok is not None and not any(ok))
 
         window = self.t["blink_window_s"]
+        self.state["blink_n"] += self.fast.feed(eeg[1], eeg[2])
         new_blinks = self.blinks.feed(eeg[1], eeg[2])
         for _ in new_blinks:
             self.blink_times.append(now)
