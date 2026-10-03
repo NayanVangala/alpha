@@ -57,6 +57,8 @@ export function Header({ status, live, listen, nerdOpen, onRecalibrate, onDiscon
         <TextButton onClick={onNerd} pressed={nerdOpen}>
           Stats for nerds
         </TextButton>
+        <a className="underline decoration-1 underline-offset-4 hover:text-foreground" href="/gaze">Gaze</a>
+        <a className="underline decoration-1 underline-offset-4 hover:text-foreground" href="/">Slides</a>
       </div>
     </header>
   )

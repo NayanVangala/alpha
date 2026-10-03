@@ -84,9 +84,13 @@ def connected(monkeypatch):
 def test_board_app_is_served_once_built(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "UI", tmp_path)
     client = TestClient(server.app, base_url="http://127.0.0.1:8000")
-    assert client.get("/").status_code == 503 and "npm run build" in client.get("/").text
+    assert client.get("/board").status_code == 503 and "npm run build" in client.get("/board").text
     (tmp_path / "index.html").write_text('<div id="root"></div>')
-    assert client.get("/").text == '<div id="root"></div>' and client.get("/board").status_code == 200
+    assert client.get("/board").text == '<div id="root"></div>'
+    assert client.get("/").status_code == 503  # the deck isn't built yet
+    (tmp_path / "landing.html").write_text("<deck>")
+    assert client.get("/").text == "<deck>"
+    assert client.get("/?hud").text == '<div id="root"></div>'  # the floating window still gets the app
 
 
 def test_board_is_gated_on_a_connected_headband(monkeypatch):

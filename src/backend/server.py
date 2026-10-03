@@ -188,21 +188,31 @@ def running_coach():
     return session.coach
 
 
+BUILD_HINT = "Build the board first: cd src/frontend && npm install && npm run build"
+
+
+def page(name):
+    if not (UI / name).exists():
+        return Response(BUILD_HINT, 503, media_type="text/plain")
+    return FileResponse(UI / name, headers={"Cache-Control": "no-cache"})  # a reload always gets the newest build
+
+
 @app.get("/")
+def landing_page(request: Request):
+    """The deck: what Alpha is, as slides. The floating window (?hud) still loads the app from here."""
+    return page("index.html" if "hud" in request.query_params else "landing.html")
+
+
 @app.get("/board")
 def board_page():
     """The board. It stays behind its connect screen until a headband is connected and calibrated."""
-    if not (UI / "index.html").exists():
-        return Response("Build the board first: cd src/frontend && npm install && npm run build", 503, media_type="text/plain")
-    return FileResponse(UI / "index.html", headers={"Cache-Control": "no-cache"})  # a reload always gets the newest build
+    return page("index.html")
 
 
 @app.get("/gaze")
 def gaze_page():
     """The eye-tracking test page: calibrate, then a gaze dot over six big targets."""
-    if not (UI / "gaze.html").exists():
-        return Response("Build the board first: cd src/frontend && npm install && npm run build", 503, media_type="text/plain")
-    return FileResponse(UI / "gaze.html", headers={"Cache-Control": "no-cache"})
+    return page("gaze.html")
 
 
 @app.get("/api/gaze/config")

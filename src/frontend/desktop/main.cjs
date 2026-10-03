@@ -56,7 +56,7 @@ app.whenReady().then(() => {
   })
   win.setAlwaysOnTop(true, "screen-saver") // above full-screen windows too
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true }) // follows you to every Space
-  const load = () => win.loadURL(`${ALPHA}/?hud`)
+  const load = () => win.loadURL(`${ALPHA}/board?hud`)
   win.webContents.on("did-fail-load", (_e, code, why) => {
     console.log(`Can't reach Alpha at ${ALPHA} (${why}); retrying`) // board server not up yet: keep trying
     setTimeout(load, 1500)
