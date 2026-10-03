@@ -1,5 +1,5 @@
 import { type Gaze, type GazeSource, startGaze } from "@/lib/gaze"
-import { TileTracker, calibrationHolds } from "@/lib/gazeKit"
+import { LossWatch, Scanner, TileTracker, calibrationHolds } from "@/lib/gazeKit"
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -14,6 +14,26 @@ const targets = ["Home", "Back", "Search", "Videos", "Read", "Stop"].map((name) 
 
 let on: HTMLElement | null = null
 let testing = false
+/* The fallback ladder: eyes (calibrated webcam gaze) > pointer (mouse, trackpad or a head mouse) > scan (one tile lit at a time,
+   a bite takes it). Eyes steps down to scan on its own when the tracker can't be trusted; the tracker keeps running so the camera
+   brake survives. Pointer is chosen by hand because it replaces the tracker. */
+type Rung = "gaze" | "pointer" | "scan"
+let rung: Rung = "gaze"
+const scanner = new Scanner(targets.length)
+let watch = new LossWatch(performance.now())
+const why = $("why"), again = $("again-btn")
+function setRung(next: Rung, reason = "") {
+  rung = next
+  document.querySelectorAll<HTMLElement>("#ladder [data-r]").forEach((e) => e.classList.toggle("cur", e.dataset.r === next))
+  why.textContent = reason
+  again.style.display = next === "gaze" ? "none" : "inline-block"
+  if (next === "scan") scanner.restart(performance.now())
+  if (next === "gaze") watch = new LossWatch(performance.now())
+}
+function light(idx: number) {
+  const under = idx >= 0 ? targets[idx] : null
+  if (under !== on) { on?.classList.remove("on"); under?.classList.add("on"); on = under }
+}
 let buf: Gaze[] = []
 let openNow: number | null = null
 const tracker = new TileTracker()  // sticky borders: a tile lights after 300 ms inside it, and holds until you truly leave
@@ -25,11 +45,20 @@ const onGaze = ({ x, y, ok, open }: Gaze) => {
   dot.style.transform = `translate(${x}px, ${y}px)`
   if (ok) lastOk = performance.now()
   dot.classList.toggle("lost", !ok)
-  const idx = ok ? tracker.update(rects(), x, y, performance.now()) : tracker.current
-  const under = idx >= 0 ? targets[idx] : null
-  if (under !== on) { on?.classList.remove("on"); under?.classList.add("on"); on = under }
+  watch.seen(ok, performance.now())
+  if (rung === "scan") return  // the dot still moves (the calibration check reads it), but the tiles follow the scanner
+  light(ok ? tracker.update(rects(), x, y, performance.now()) : tracker.current)
 }
 setInterval(() => { if (lastOk && performance.now() - lastOk > 500) dot.classList.add("lost") }, 150)  // a stale reading isn't where you are looking
+setInterval(() => {
+  const now = performance.now()
+  if (rung === "scan") light(scanner.update(now))
+  else if (rung === "gaze" && source?.mode === "eyedid" && !testing && cal.style.display !== "block" && watch.lost(now)) stepDown("Eye tracking lost for 5 seconds")
+}, 100)
+function stepDown(reason: string) {
+  setRung("scan", reason)
+  status.textContent = "Scanning: a tile lights for 1.5 s at a time. Press Space (a bite) to pick the lit one. The camera brake stays on."
+}
 
 /* The startup check: a dot appears on a tile; the calibration passes only if the median gaze lands within half a tile of it. */
 const val = $("val")
@@ -49,9 +78,13 @@ async function checkCalibration() {
   val.style.display = "none"
   const samples = buf.filter((g) => g.ok).slice(Math.floor(buf.length / 2))
   const res = calibrationHolds(samples, target, Math.min(r.width, r.height))
-  status.textContent = res.pass
-    ? `Calibration check passed: your gaze lands within ${Math.round(res.median)} px of the dot.`
-    : `Calibration check FAILED (${res.n < 10 ? `only ${res.n} readings` : `${Math.round(res.median)} px off`}): press Calibrate and try again.`
+  if (res.pass) {
+    if (rung === "scan") setRung("gaze")
+    status.textContent = `Calibration check passed: your gaze lands within ${Math.round(res.median)} px of the dot.`
+  } else {
+    stepDown("Calibration check failed")
+    status.textContent = `Calibration check FAILED (${res.n < 10 ? `only ${res.n} readings` : `${Math.round(res.median)} px off`}): scanning instead. Press Calibrate to try again.`
+  }
 }
 
 let fired = 0
@@ -62,7 +95,7 @@ function onEyesClosed() {
     .then((r) => (picked.textContent = `Camera brake fired ×${fired} (board said ${r.status}).`))
     .catch(() => (picked.textContent = `Camera brake fired ×${fired}.`))
 }
-setInterval(() => { if (source?.mode === "eyedid") status.textContent = `Eye tracking on · eye openness ${openNow === null ? "?" : openNow.toFixed(2)} · close your eyes for a second to test the camera brake` }, 250)
+setInterval(() => { if (rung === "gaze" && source?.mode === "eyedid") status.textContent = `Eye tracking on · eye openness ${openNow === null ? "?" : openNow.toFixed(2)} · close your eyes for a second to test the camera brake` }, 250)
 
 let source: GazeSource | null = null
 async function begin(mouse: boolean) {
@@ -70,15 +103,18 @@ async function begin(mouse: boolean) {
   status.textContent = "Starting…"
   try {
     source = await startGaze(onGaze, { mouse, onEyesClosed })
-    status.textContent = source.mode === "eyedid" ? "Eye tracking on. Calibrate once, then look at a target." : "Mouse stand-in (no eye tracking): the dot follows your mouse."
+    if (source.mode === "eyedid") setRung("gaze")
+    else setRung("pointer", "the dot follows your mouse, trackpad or head mouse")
+    status.textContent = source.mode === "eyedid" ? "Eye tracking on. Calibrate once, then look at a target." : "Pointer: the dot follows your mouse (or a head mouse). The camera brake is off in this mode."
     if (source.mode === "eyedid" && localStorage.getItem("alpha.gaze.cal")) setTimeout(checkCalibration, 800)  // every startup re-checks the saved calibration
   } catch (e) {
-    status.textContent = `${(e as Error).message} Using the mouse stand-in.`
-    source = await startGaze(onGaze, { mouse: true, onEyesClosed })
+    source = null
+    stepDown((e as Error).message)  // no tracker at all: the ladder lands on scan, which needs nothing
   }
 }
 
 $("mouse-btn").addEventListener("click", () => begin(true))
+again.addEventListener("click", () => (source?.mode === "eyedid" ? (setRung("gaze"), (status.textContent = "Eye tracking back on.")) : begin(false)))
 $("cal-btn").addEventListener("click", async () => {
   if (source?.mode !== "eyedid") return void (status.textContent = "Calibration needs eye tracking: reload this page and allow the camera.")
   cal.style.display = "block"
@@ -96,7 +132,11 @@ $("cal-btn").addEventListener("click", async () => {
   }
 })
 addEventListener("keydown", (e) => {
-  if (e.code === "Space" && on) { e.preventDefault(); picked.textContent = `Selected: ${on.textContent}`; }
+  if (e.code === "Space" && on) {
+    e.preventDefault()
+    picked.textContent = `Selected: ${on.textContent}`
+    if (rung === "scan") scanner.restart(performance.now())
+  }
 })
 
 begin(false)
@@ -105,6 +145,7 @@ begin(false)
    most of the gaze samples from the second half (once the eyes have landed) fall inside it. */
 $("test-btn").addEventListener("click", async () => {
   if (testing) return
+  if (rung !== "gaze") return void (status.textContent = "The accuracy test needs eye tracking: press Try eye tracking again first.")
   testing = true
   const result = $("result")
   result.style.display = "none"

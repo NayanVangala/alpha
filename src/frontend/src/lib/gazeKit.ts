@@ -92,3 +92,45 @@ export async function claimCamera(): Promise<() => void> {
     )
   })
 }
+
+/** The last rung of the fallback ladder: auto-scan. One tile is lit at a time and the light moves on every `stepMs`;
+ * a bite (Space on the test page) takes the lit one. Needs no tracker, no pointer and no calibration. */
+export class Scanner {
+  current = 0
+  private since = -1
+  private n: number
+  private stepMs: number
+  constructor(n: number, stepMs = 1500) {
+    this.n = n
+    this.stepMs = stepMs
+  }
+  update(nowMs: number) {
+    if (this.since < 0) this.since = nowMs
+    else if (nowMs - this.since >= this.stepMs) {
+      this.current = (this.current + 1) % this.n
+      this.since = nowMs
+    }
+    return this.current
+  }
+  /** After a pick the sweep starts over from the first tile. */
+  restart(nowMs: number) {
+    this.current = 0
+    this.since = nowMs
+  }
+}
+
+/** Says when the tracker has given no usable reading for `lostMs`: the cue to step down the ladder. */
+export class LossWatch {
+  private lastOk: number
+  private lostMs: number
+  constructor(nowMs: number, lostMs = 5000) {
+    this.lastOk = nowMs
+    this.lostMs = lostMs
+  }
+  seen(ok: boolean, nowMs: number) {
+    if (ok) this.lastOk = nowMs
+  }
+  lost(nowMs: number) {
+    return nowMs - this.lastOk >= this.lostMs
+  }
+}
