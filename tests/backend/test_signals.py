@@ -95,6 +95,14 @@ def test_clench_calibration_survives_a_clench_while_calibrating():
     assert len(stream(det.feed, fake_eeg(rng, 10, clenches=[(3, 3)]))) == 1
 
 
+def test_clench_calibration_reports_a_noisy_rest():
+    rng = np.random.default_rng(0)
+    quiet, noisy = ClenchDetector(), ClenchDetector()
+    quiet.calibrate(fake_eeg(rng, 20))
+    noisy.calibrate(fake_eeg(rng, 20, clenches=[(2, 2), (7, 2), (12, 2), (16, 2)]))
+    assert quiet.rest_burst_frac < 0.05 < noisy.rest_burst_frac
+
+
 def test_clench_shows_active_only_once_held():
     rng = np.random.default_rng(0)
     det = ClenchDetector()

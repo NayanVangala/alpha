@@ -247,6 +247,7 @@ class ClenchDetector:
         self.run_start = None  # sample index where the current burst began
         self.below = 0
         self.level = None  # latest window level as a fraction of the threshold: 1.0 means biting
+        self.rest_burst_frac = 0.0  # share of calibration windows already over the threshold: noise or tension
 
     def _muscle(self, eeg, zi=None):
         """Per-sample muscle signal behind each ear, (2, n); the filter starts settled so DC offset isn't a burst."""
@@ -272,7 +273,9 @@ class ClenchDetector:
             return False
         level, _ = self._muscle(eeg)
         # 3x: on two real sessions every bite and hold cleared it with margin, and nothing else did
-        self.threshold_uv = max(15.0, 3 * float(np.median(self._windows(level))))
+        windows = self._windows(level)
+        self.threshold_uv = max(15.0, 3 * float(np.median(windows)))
+        self.rest_burst_frac = float(np.mean(windows > self.threshold_uv))  # 0.00 on clean sessions, 0.16 on a loose, tense one
         return True
 
     @property

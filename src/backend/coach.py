@@ -26,6 +26,7 @@ from .signals import (
 
 TICK_S = 0.25
 CALIBRATE_S = 20
+NOISY_REST_FRAC = 0.05  # more of the still 20 s than this over the bite line = noisy contact or a tense jaw
 SAMPLE_EVERY_S = 5  # one samples row per this many seconds of live data
 LOW_BLINKS_PER_MIN = 7  # healthy is ~15; screens drop it to ~5
 SLOUCH_DEG = 15
@@ -178,6 +179,8 @@ class Coach:
                 if not ok
             ]
             note = "Calibrated." if not missed else f"Calibrated, but didn't catch {' or '.join(missed)}; using defaults for those."
+            if clench.rest_burst_frac > NOISY_REST_FRAC:
+                note += " The jaw sensors were noisy while you sat still: relax your jaw, make sure the band is snug and damp, then recalibrate."
         self.blinks, self.clench, self.posture = blinks, clench, posture
         self.eyes_threshold = eyes.threshold
         self.gestures = Gestures(clench.threshold_uv, self.eyes_threshold)
