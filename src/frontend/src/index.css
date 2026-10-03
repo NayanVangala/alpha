@@ -111,3 +111,6 @@
 
 /* the floating window (Hud.tsx) draws its own rounded card on a see-through window */
 html.hud, html.hud body { background: transparent; min-height: 0; }
+
+@keyframes beat { 0% { transform: scale(1); opacity: 1; } 14% { transform: scale(1.9); opacity: 0.55; } 100% { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .beat { animation: none !important; } }

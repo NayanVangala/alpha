@@ -48,6 +48,17 @@ function Trace({ name, what, trail, brain }: { name: string; what: string; trail
 
 const BY: Record<Decision["by"], string> = { brain: "brain", muscle: "muscle", silence: "silence", keys: "keyboard", camera: "camera", presence: "headband off", head: "head" }
 
+/** The wearer's own pulse, from the headband's optical sensor: the dot beats at the measured rate (not beat-locked). */
+function Pulse({ bpm }: { bpm: number | null }) {
+  if (!bpm) return null
+  return (
+    <p className="m-0 flex items-center gap-2 text-tag text-muted-foreground tabular-nums">
+      <span className="beat size-2 rounded-full bg-ultramarine" style={{ animation: `beat ${(60 / bpm).toFixed(2)}s ease-out infinite` }} />
+      Pulse {Math.round(bpm)} bpm
+    </p>
+  )
+}
+
 /**
  * What decided each of Claude's steps, live: the wearer's alpha waves (brain) and jaw (muscle) against their
  * lines, the latest decisions with what made them, and the counts. The bite is labeled muscle on purpose.
@@ -60,6 +71,7 @@ export function BrainPanel({ s, compact, className }: { s: BoardState; compact?:
     <section className={cn("grid gap-2", className)} aria-label="What your brain and muscles decided">
       <Trace name="Brain" what="alpha · no" trail={alpha} brain />
       <Trace name="Muscle" what="jaw · yes" trail={muscle} />
+      <Pulse bpm={s.headband.hr} />
       {shown.length > 0 && (
         <ol className="m-0 grid list-none gap-0.5 p-0 text-label">
           {shown.map((d, i) => (
