@@ -1,11 +1,13 @@
+import Lenis from "lenis"
+import gsap from "gsap"
+import { ScrollTrigger } from "gsap/ScrollTrigger"
 import "./landing.css"
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 const slides = [...document.querySelectorAll<HTMLElement>(".slide")]
 const still = matchMedia("(prefers-reduced-motion: reduce)").matches
 const BLUE = "#0004F6"
-let cur = -1
-let busy = false
+let cur = 0
 
 /* ---------- headings roll in letter by letter ---------- */
 document.querySelectorAll<HTMLElement>(".roll").forEach((el) => {
@@ -58,88 +60,14 @@ function drawDither(cv: HTMLCanvasElement, t: number) {
 }
 
 let last = 0
+const showing = new Set<HTMLCanvasElement>()
 function loop(now: number) {
   if (now - last > 40) {  // ~25 fps is plenty for pixels this big
     last = now
-    const cv = slides[cur]?.querySelector<HTMLCanvasElement>("canvas.dither")
-    if (cv) drawDither(cv, now / 1000)
+    showing.forEach((cv) => drawDither(cv, now / 1000))
   }
   requestAnimationFrame(loop)
 }
-
-/* ---------- pixel wipe between slides ---------- */
-function wipe(onMid: () => void) {
-  if (still) return onMid()
-  busy = true
-  const cvs = $<HTMLCanvasElement>("wipe")
-  const c = cvs.getContext("2d")!
-  cvs.width = innerWidth
-  cvs.height = innerHeight
-  const cell = Math.ceil(innerWidth / 30)
-  const cols = Math.ceil(innerWidth / cell), rows = Math.ceil(innerHeight / cell)
-  const delay = Array.from({ length: cols * rows }, () => Math.random() * 0.65)
-  const t0 = performance.now()
-  let mid = false
-  const frame = (now: number) => {
-    const t = (now - t0) / 340  // 0 to 1 fills the screen with squares, 1 to 2 clears them
-    c.clearRect(0, 0, cvs.width, cvs.height)
-    const phase = t < 1 ? t : 2 - t
-    if (t >= 1 && !mid) { mid = true; onMid() }
-    c.fillStyle = BLUE
-    for (let i = 0; i < delay.length; i++) {
-      const s = Math.min(1, Math.max(0, (phase - delay[i]) / 0.35))
-      if (s <= 0) continue
-      const size = cell * s
-      c.fillRect((i % cols) * cell + (cell - size) / 2, Math.floor(i / cols) * cell + (cell - size) / 2, size + 0.5, size + 0.5)
-    }
-    if (t < 2) requestAnimationFrame(frame)
-    else { c.clearRect(0, 0, cvs.width, cvs.height); busy = false }
-  }
-  requestAnimationFrame(frame)
-}
-
-/* ---------- navigation ---------- */
-const bar = $("progress")
-const dots = slides.map((_, i) => {
-  const b = document.createElement("button")
-  b.setAttribute("aria-label", `Go to slide ${i + 1}`)
-  b.addEventListener("click", () => go(i))
-  bar.append(b)
-  return b
-})
-
-function show(i: number) {
-  cur = i
-  slides.forEach((s, k) => s.classList.toggle("active", k === i))
-  dots.forEach((d, k) => d.classList.toggle("on", k === i))
-  $("sec").textContent = slides[i].dataset.title ?? ""
-  $("count").textContent = `${i + 1} / ${slides.length}`
-  document.body.classList.toggle("on-dark", slides[i].classList.contains("dark") || slides[i].classList.contains("blue"))
-  history.replaceState(null, "", `#${i + 1}`)
-  slides[i].scrollTop = 0
-}
-
-function go(i: number) {
-  if (busy || i === cur || i < 0 || i >= slides.length) return
-  if (cur < 0) return show(i)
-  wipe(() => show(i))
-}
-
-$("prev").addEventListener("click", () => go(cur - 1))
-$("next").addEventListener("click", () => go(cur + 1))
-addEventListener("keydown", (e) => {
-  if ((e.target as HTMLElement).closest("button, a") && (e.key === " " || e.key === "Enter")) return
-  if (["ArrowRight", "PageDown", " ", "Enter"].includes(e.key)) { e.preventDefault(); go(cur + 1) }
-  else if (["ArrowLeft", "PageUp"].includes(e.key)) { e.preventDefault(); go(cur - 1) }
-  else if (e.key === "Home") go(0)
-  else if (e.key === "End") go(slides.length - 1)
-  else if (/^[1-9]$/.test(e.key)) go(Number(e.key) - 1)
-  else if (e.key === "f" || e.key === "F") void (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen())
-})
-let sx = 0
-addEventListener("touchstart", (e) => { sx = e.touches[0].clientX }, { passive: true })
-addEventListener("touchend", (e) => { const dx = e.changedTouches[0].clientX - sx; if (Math.abs(dx) > 60) go(cur + (dx < 0 ? 1 : -1)) }, { passive: true })
-addEventListener("hashchange", () => go(Number(location.hash.slice(1)) - 1))
 
 /* ---------- the brake demo (simulated): a card counts down, closing your eyes lifts the alpha trace past your line ---------- */
 const CARDS = [
@@ -241,21 +169,200 @@ $("eyes").addEventListener("click", function (this: HTMLElement) {
 })
 $("bite").addEventListener("click", () => { if (!demo.decided) decide("muscle", "approved by MUSCLE") })
 
-/* ---------- on the public site there is no app behind this page: point "Open the app" at the code instead ---------- */
-fetch("/api/gaze/config")
-  .then((r) => { if (!r.ok) throw new Error("no app here") })
-  .catch(() => {
-    const a = document.querySelector<HTMLAnchorElement>(".bubble")
-    if (!a) return
-    a.href = "https://github.com/NayanVangala/rein"
-    a.target = "_blank"
-    a.rel = "noopener"
-    a.querySelector("span")!.textContent = "View the code"
-  })
 
-/* ---------- start ---------- */
+/* ---------- scroll: Lenis for the smoothing, one GSAP timeline for every transition ---------- */
+const SCENES = slides.length
+const UNIT = () => innerHeight * 1.5  // scroll distance of one scene
+const sceneTitle = $("sec"), count = $("count")
+const bar = $("progress")
+const dots = slides.map((_, i) => {
+  const b = document.createElement("button")
+  b.setAttribute("aria-label", `Go to scene ${i + 1}`)
+  b.addEventListener("click", () => toScene(i))
+  bar.append(b)
+  return b
+})
+let lenis: Lenis | null = null
+const toScene = (i: number) => {
+  const y = i === 0 ? 0 : (Math.min(SCENES - 1, Math.max(0, i)) + 0.5) * UNIT()
+  if (lenis) lenis.scrollTo(y, { duration: 1.4 })
+  else slides[i].scrollIntoView({ behavior: "smooth" })
+}
+
+function setActive(i: number) {
+  if (i === cur && slides[i].classList.contains("active")) return
+  cur = i
+  slides.forEach((s, k) => s.classList.toggle("active", k === i))
+  dots.forEach((d, k) => d.classList.toggle("on", k === i))
+  sceneTitle.textContent = slides[i].dataset.title ?? ""
+  count.textContent = `${i + 1} / ${SCENES}`
+  document.body.classList.toggle("on-dark", slides[i].classList.contains("dark") || slides[i].classList.contains("blue"))
+  history.replaceState(null, "", `#${i + 1}`)
+}
+
+// How each scene leaves and how the next one arrives. Boundary i is between scene i and scene i + 1.
+const FLOW: { out: "zoom" | "explode" | "shift"; in: "zoom" | "iris" | "shift" | "flood" }[] = [
+  { out: "explode", in: "zoom" },
+  { out: "zoom", in: "iris" },
+  { out: "shift", in: "shift" },
+  { out: "zoom", in: "zoom" },
+  { out: "shift", in: "flood" },
+  { out: "zoom", in: "shift" },
+  { out: "explode", in: "zoom" },
+  { out: "zoom", in: "iris" },
+]
+const PARTS = ".w, .card, .node, .stats > div, .steps4 li, .road li, .rules li, .panel, .term, .lead, .body, .who, .tag, .micro, .credits"
+
+function build() {
+  gsap.registerPlugin(ScrollTrigger)
+  const scroller = $("scroller")
+  scroller.style.height = `${SCENES * UNIT() + innerHeight}px`
+  gsap.set(slides, { zIndex: (i: number) => i + 1 })
+  gsap.set(slides.slice(1), { autoAlpha: 0 })
+  const tl = gsap.timeline({ defaults: { ease: "power2.inOut" }, scrollTrigger: {
+    trigger: scroller, start: "top top", end: "bottom bottom", scrub: 0.7, invalidateOnRefresh: true,
+    onUpdate: (self) => {
+      const p = self.progress * SCENES  // scene units: scene i holds from i + 0.2 to i + 0.8
+      setActive(Math.min(SCENES - 1, Math.max(0, Math.floor(p + 0.2))))
+      showing.clear()
+      slides.forEach((sl) => {
+        const cv = sl.querySelector<HTMLCanvasElement>("canvas.dither")
+        if (cv && Number(gsap.getProperty(sl, "opacity")) > 0.02) showing.add(cv)
+      })
+    },
+  } })
+  tl.to({}, { duration: SCENES }, 0)  // the timeline spans SCENES scene units
+  tl.fromTo(slides[0].querySelector("h1"), { scale: 1 }, { scale: 1.12, duration: 0.8, ease: "none" }, 0)
+  FLOW.forEach((f, i) => {
+    const t0 = i + 0.8, d = 0.4
+    const from = slides[i], to = slides[i + 1]
+    if (f.out === "zoom") tl.to(from, { scale: 1.7, autoAlpha: 0, duration: d, ease: "power2.in" }, t0)
+    if (f.out === "shift") tl.to(from, { xPercent: -22, scale: 0.88, autoAlpha: 0, duration: d, ease: "power2.in" }, t0)
+    if (f.out === "explode") {  // everything flies apart, then the scene is gone
+      const parts = gsap.utils.toArray<HTMLElement>(from.querySelectorAll(PARTS))
+      tl.to(parts, { x: () => gsap.utils.random(-900, 900), y: () => gsap.utils.random(-600, 600), rotation: () => gsap.utils.random(-140, 140),
+        scale: () => gsap.utils.random(0.4, 2.2), autoAlpha: 0, duration: d, ease: "power3.in", stagger: { amount: 0.1, from: "center" } }, t0)
+      tl.to(from, { autoAlpha: 0, scale: 1.25, duration: 0.12, ease: "none" }, t0 + d - 0.12)
+    }
+    if (f.in === "zoom") tl.fromTo(to, { scale: 0.55, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: d, ease: "power3.out" }, t0)
+    if (f.in === "shift") tl.fromTo(to, { xPercent: 22, scale: 0.92, autoAlpha: 0 }, { xPercent: 0, scale: 1, autoAlpha: 1, duration: d, ease: "power3.out" }, t0)
+    if (f.in === "iris" || f.in === "flood") {  // a circle of the next scene opens over the last one
+      const at = f.in === "iris" ? "50% 50%" : "100% 100%"
+      tl.fromTo(to, { autoAlpha: 1, clipPath: `circle(0% at ${at})` }, { clipPath: `circle(150% at ${at})`, duration: d, ease: "power2.inOut" }, t0)
+      tl.fromTo(to.querySelector(".inner"), { scale: 1.25 }, { scale: 1, duration: d, ease: "power2.out" }, t0)
+    }
+    // whatever was thrown about comes back to rest when scrubbing backwards past it: the tweens are reversible
+  })
+  return tl
+}
+
+/* ---------- connect a Muse: scan, pick, connect, then explode into the app ---------- */
+type Device = { name: string; brand: string; supported: boolean; simulated?: boolean }
+const connectBtn = $<HTMLButtonElement>("connect"), codeLink = $("code"), panel = $("muse")
+let serverPhase = "locked"
+
+function burstInto(url: string, from: DOMRect) {
+  const cv = $<HTMLCanvasElement>("wipe")
+  const c = cv.getContext("2d")!
+  cv.width = innerWidth
+  cv.height = innerHeight
+  const ox = from.left + from.width / 2, oy = from.top + from.height / 2
+  const bits = Array.from({ length: 900 }, () => {
+    const a = Math.random() * Math.PI * 2, v = 6 + Math.random() * 38
+    return { x: ox, y: oy, vx: Math.cos(a) * v, vy: Math.sin(a) * v, s: 6 + Math.random() * 22, r: Math.random() * 6, col: [BLUE, "#CDCCFF", "#06060C", "#0004F6"][Math.floor(Math.random() * 4)] }
+  })
+  gsap.to(document.getElementById("deck"), { scale: 1.35, autoAlpha: 0, duration: 0.8, ease: "power3.in" })
+  const t0 = performance.now()
+  const frame = (now: number) => {
+    const t = (now - t0) / 800
+    c.clearRect(0, 0, cv.width, cv.height)
+    for (const b of bits) {
+      b.x += b.vx * (1 - t * 0.5); b.y += b.vy * (1 - t * 0.5)
+      c.fillStyle = b.col
+      c.globalAlpha = Math.max(0, 1 - t * 0.9)
+      c.save(); c.translate(b.x, b.y); c.rotate(b.r + t * 3); c.fillRect(-b.s / 2, -b.s / 2, b.s, b.s); c.restore()
+    }
+    if (t < 1) requestAnimationFrame(frame)
+    else { c.fillStyle = BLUE; c.globalAlpha = 1; c.fillRect(0, 0, cv.width, cv.height); location.assign(url) }
+  }
+  still ? location.assign(url) : requestAnimationFrame(frame)
+}
+
+const closePanel = () => { panel.hidden = true; connectBtn.setAttribute("aria-expanded", "false") }
+const esc = (t: string) => t.replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`)
+const post = (path: string, body?: unknown) =>
+  fetch(path, { method: "POST", headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined })
+
+async function scan() {
+  panel.innerHTML = `<h3>Looking for headbands…</h3><p>Put the Muse on and hold its button until the lights sweep.</p>`
+  let devices: Device[] = [], error: string | null = null
+  try { const r = await (await post("/api/scan")).json(); devices = r.devices ?? []; error = r.error ?? null } catch { error = "Couldn't reach the app." }
+  panel.innerHTML = `<h3>Connect a Muse</h3>` + (devices.length
+    ? devices.map((d, i) => `<div class="row"><span><b>${esc(d.name)}</b><small>${esc(d.brand)}${d.simulated ? " · for testing" : ""}</small></span>
+        <button class="go" data-i="${i}" ${d.supported ? "" : "disabled"}>${d.supported ? "Connect" : "Support coming"}</button></div>`).join("")
+    : `<p>${esc(error ?? "No headband found nearby.")} Hold the Muse's button until its lights sweep, then scan again.</p>`)
+    + `<button class="link" id="rescan" type="button">Scan again</button>`
+  panel.querySelectorAll<HTMLButtonElement>(".go").forEach((b) => b.addEventListener("click", () => connect(devices[Number(b.dataset.i)].name)))
+  $("rescan").addEventListener("click", scan)
+}
+
+async function connect(name: string) {
+  panel.innerHTML = `<h3>Connecting to ${esc(name)}…</h3><p>This takes about ten seconds. If nothing happens, hold the Muse's button until its lights sweep.</p>`
+  try { await post("/api/connect", { name }) } catch { return void (panel.innerHTML = `<h3>Couldn't connect</h3><p>The app isn't answering.</p><button class="link" id="rescan">Scan again</button>`, $("rescan").addEventListener("click", scan)) }
+  for (let i = 0; i < 120; i++) {  // up to a minute
+    await new Promise((r) => setTimeout(r, 500))
+    const st = await (await fetch("/api/state")).json().catch(() => null)
+    if (st?.phase === "connected") {
+      panel.innerHTML = `<h3>Connected</h3><p>Opening rein. It learns your jaw and blinks in 20 seconds: read the screen with your eyes open.</p>`
+      return burstInto("/board", connectBtn.getBoundingClientRect())
+    }
+    if (st?.error || st?.phase === "locked") {
+      panel.innerHTML = `<h3>Couldn't connect</h3><p>${esc(st?.error ?? "The headband didn't answer.")} Hold its button until the lights sweep.</p><button class="link" id="rescan" type="button">Scan again</button>`
+      return void $("rescan").addEventListener("click", scan)
+    }
+  }
+}
+
+connectBtn.addEventListener("click", () => {
+  if (serverPhase === "connected") return burstInto("/board", connectBtn.getBoundingClientRect())
+  if (panel.hidden) { panel.hidden = false; connectBtn.setAttribute("aria-expanded", "true"); void scan() } else closePanel()
+})
+addEventListener("keydown", (e) => { if (e.key === "Escape") closePanel() })
+// the app is here (not the public site): the button replaces the code link
+fetch("/api/state").then((r) => (r.ok ? r.json() : Promise.reject())).then((st) => {
+  serverPhase = st.phase
+  connectBtn.hidden = false
+  codeLink.hidden = true
+  if (st.phase === "connected") connectBtn.querySelector("span")!.textContent = "Open the app"
+}).catch(() => { /* the public site: View the code stays */ })
+
+/* ---------- keys and start ---------- */
+addEventListener("keydown", (e) => {
+  if ((e.target as HTMLElement).closest("button, a, input")) return
+  if (["ArrowDown", "PageDown", " "].includes(e.key)) { e.preventDefault(); toScene(Math.min(SCENES - 1, cur + 1)) }
+  else if (["ArrowUp", "PageUp"].includes(e.key)) { e.preventDefault(); toScene(Math.max(0, cur - 1)) }
+  else if (e.key === "Home") toScene(0)
+  else if (e.key === "End") toScene(SCENES - 1)
+  else if (/^[1-9]$/.test(e.key)) toScene(Number(e.key) - 1)
+  else if (e.key === "f" || e.key === "F") void (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen())
+})
+addEventListener("hashchange", () => toScene(Number(location.hash.slice(1)) - 1))
+
+if (still) {
+  document.body.classList.add("plain")  // no smoothing, no flying scenes: they just stack
+  slides.forEach((s) => s.classList.add("active"))
+  slides.forEach((s) => { const cv = s.querySelector<HTMLCanvasElement>("canvas.dither"); if (cv) { cv.style.display = "block"; drawDither(cv, 3) } })
+} else {
+  lenis = new Lenis({ lerp: 0.085, wheelMultiplier: 0.9 })
+  lenis.on("scroll", ScrollTrigger.update)
+  gsap.ticker.add((t) => lenis?.raf(t * 1000))
+  gsap.ticker.lagSmoothing(0)
+  build()
+  setActive(0)
+  const start = Number(location.hash.slice(1)) - 1
+  if (start > 0) requestAnimationFrame(() => toScene(start))
+  addEventListener("resize", () => ScrollTrigger.refresh())
+  requestAnimationFrame(loop)
+}
 showCard()
-show(Math.min(slides.length - 1, Math.max(0, Number(location.hash.slice(1)) - 1 || 0)))
-if (!still) requestAnimationFrame(loop)
-else slides.forEach((s) => { const cv = s.querySelector<HTMLCanvasElement>("canvas.dither"); if (cv) { cv.style.display = "block"; drawDither(cv, 3) } })
 requestAnimationFrame(demoFrame)

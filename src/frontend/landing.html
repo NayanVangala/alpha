@@ -16,12 +16,11 @@
 <nav class="pill" aria-label="Slides">
   <a class="brand" href="#1" aria-label="Back to the first slide"><span>rein<b class="dot">.</b></span></a>
   <span class="where"><b id="sec">rein.</b><span id="count">1 / 9</span></span>
-  <span class="steps">
-    <button id="prev" aria-label="Previous slide">←</button>
-    <button id="next" aria-label="Next slide">→</button>
-  </span>
-  <a class="bubble" href="/board"><span>Open the app</span><i aria-hidden="true">↘</i></a>
+  <button class="bubble" id="connect" type="button" hidden aria-haspopup="dialog" aria-expanded="false"><span>Connect a Muse</span><i aria-hidden="true">↘</i></button>
+  <a class="bubble" id="code" href="https://github.com/NayanVangala/rein" target="_blank" rel="noopener"><span>View the code</span><i aria-hidden="true">↗</i></a>
 </nav>
+
+<div class="muse" id="muse" role="dialog" aria-label="Connect a Muse headband" hidden></div>
 
 <main id="deck">
 
@@ -32,7 +31,7 @@
       <p class="micro rise" style="--d:0">Dublin Hacx 2026 · Muse 2 · Claude Code</p>
       <h1 class="roll">A brake pedal for AI agents.</h1>
       <p class="lead rise" style="--d:5">No hands, no voice, still in charge.</p>
-      <p class="hint rise" style="--d:7">Press → to begin</p>
+      <p class="hint rise" style="--d:7">Scroll to begin <span class="bob" aria-hidden="true">↓</span></p>
     </div>
   </section>
 
@@ -205,6 +204,7 @@
 
 </main>
 
+<div id="scroller" aria-hidden="true"></div>
 <div class="progress" id="progress" aria-hidden="true"></div>
 <canvas id="wipe" aria-hidden="true"></canvas>
 <script type="module" src="/src/landing.ts"></script>
