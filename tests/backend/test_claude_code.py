@@ -80,3 +80,18 @@ def test_the_plugin_and_the_project_install_send_every_event_to_alpha(tmp_path):
     stop = [h["hooks"][0] for h in data["hooks"]["Stop"]]
     assert stop[0]["command"] == "say done" and stop[1:] == [{"type": "http", "url": cc.HOOK_URL, "timeout": cc.TIMEOUT_S}]
     assert data["hooks"]["PreToolUse"][0]["hooks"][0]["timeout"] == 5  # runs before every tool call
+
+
+def test_browser_actions_read_as_plain_words_and_looking_needs_no_answer():
+    nav = "mcp__playwright__browser_navigate"
+    assert cc.describe(nav, {"url": "https://en.wikipedia.org"}) == ("Claude wants to open", "https://en.wikipedia.org", False)
+    assert cc.describe("mcp__plugin_playwright_playwright__browser_click", {"element": "Search button", "ref": "e3"})[:2] == (
+        "Claude wants to click", "Search button")
+    assert cc.describe("mcp__playwright__browser_type", {"element": "Search box", "text": "alpha waves"})[1] == '"alpha waves" into Search box'
+    for risky in ("browser_evaluate", "browser_run_code", "browser_file_upload"):
+        assert cc.describe("mcp__playwright__" + risky, {})[2], risky  # scripts and uploads: Deny first
+    asked = []
+    seen = cc.on_permission({"tool_name": "mcp__playwright__browser_snapshot", "tool_input": {}}, lambda *a, **k: asked.append(a))
+    assert seen["hookSpecificOutput"]["decision"] == {"behavior": "allow"} and not asked  # no card for looking
+    cc.on_permission({"tool_name": nav, "tool_input": {"url": "https://x.org"}}, lambda *a, **k: asked.append(a) or "Allow")
+    assert asked  # opening a page does show a card

@@ -32,6 +32,9 @@ RISKY = re.compile(
     r"(^|[\s;&|(])(rm|sudo|curl|wget|chmod|chown|dd|mkfs|kill"
     r"|git\s+(push|reset|clean|commit|add|checkout|switch|merge|rebase|stash|tag|branch\s+-[dD]))\b"
 )
+# Playwright MCP tools (the sandboxed browser): seeing the page needs no answer; acting on it shows a card
+BROWSER = re.compile(r"^mcp__(?:plugin_playwright_)?playwright__browser_(\w+)$")
+LOOK_ONLY = {"snapshot", "take_screenshot", "wait_for", "tabs", "console_messages", "network_requests", "resize", "close"}
 NEXT_LINE = re.compile(r"^[\s*_`]*Next[\s*_`]*:\s*(.+?)\s*$", re.M | re.I)
 DONE = "I'm done"
 FIXED_NEXT = {"Keep going": "going", "Run the tests": "test"}  # always offered, unless a guess already says it
@@ -75,6 +78,25 @@ def describe(tool, inp, cwd=""):
         if cwd and what.startswith(cwd.rstrip("/") + "/"):
             what = os.path.relpath(what, cwd)
         return "Claude wants to read", what, False
+    if m := BROWSER.match(tool):
+        what, element = m.group(1), str(inp.get("element") or "")
+        if what == "navigate":
+            return "Claude wants to open", str(inp.get("url") or ""), False
+        if what in ("navigate_back", "hover"):
+            return "Claude wants to " + ("go back" if what == "navigate_back" else "point at"), element, False
+        if what == "click":
+            return "Claude wants to click", element or "something on the page", False
+        if what == "type":
+            return "Claude wants to type", f'"{clip(str(inp.get("text") or ""), 60)}"' + (f" into {element}" if element else ""), False
+        if what == "fill_form":
+            return "Claude wants to fill in a form", f"{len(inp.get('fields') or [])} fields", False
+        if what == "press_key":
+            return "Claude wants to press", str(inp.get("key") or ""), False
+        if what == "select_option":
+            return "Claude wants to choose", element or "an option", False
+        if what in LOOK_ONLY:
+            return "Claude wants to look at the page", "", False
+        return f"Claude wants to {what.replace('_', ' ')} in the browser", json.dumps(inp)[:200], True  # scripts, uploads: Deny first
     if tool in ("WebFetch", "WebSearch"):
         return "Claude wants to look up", str(inp.get("url") or inp.get("query") or ""), False
     return f"Claude wants to use {tool}", json.dumps(inp)[:200], True  # anything unknown: Deny lit first
@@ -97,6 +119,8 @@ def clip(text, n):
 
 
 def on_permission(event, ask):
+    if (m := BROWSER.match(event.get("tool_name", ""))) and m.group(1) in LOOK_ONLY:
+        return {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "allow"}}}
     title, detail, risky = describe(event.get("tool_name", ""), event.get("tool_input") or {}, event.get("cwd", ""))
     picked = ask("permission", title, detail, ["Deny", "Allow"] if risky else ["Allow", "Deny"], auto=not risky)
     if picked is None:

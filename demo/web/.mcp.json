@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y", "@playwright/mcp@latest",
+        "--isolated", "--browser", "chrome",
+        "--allowed-origins", "https://duckduckgo.com;https://html.duckduckgo.com;https://en.wikipedia.org;https://www.wikipedia.org;https://upload.wikimedia.org"
+      ]
+    }
+  }
+}
