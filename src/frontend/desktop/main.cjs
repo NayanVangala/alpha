@@ -1,9 +1,9 @@
 // Alpha's floating window: a small always-on-top board that sits over VS Code or any terminal (Mac and Windows),
 // so the wearer can answer Claude Code without leaving it. It shows the board server's page in compact form (?hud).
 // Run the board server first, then: cd src/frontend && npm run hud
-const { app, BrowserWindow, globalShortcut, screen } = require("electron")
+const { app, BrowserWindow, globalShortcut, screen, session, systemPreferences } = require("electron")
 
-const ALPHA = process.env.ALPHA_URL || "http://127.0.0.1:8000"
+const ALPHA = process.env.ALPHA_URL || "http://localhost:8000"
 const W = 460
 const H = 560
 
@@ -38,6 +38,13 @@ function closeEyes() {
 if (process.platform === "darwin") app.dock.hide()
 
 app.whenReady().then(() => {
+  // The camera brake needs the webcam: allowed for Alpha's own page only, and macOS is asked the first time it's used.
+  const ours = (wc) => wc.getURL().startsWith(ALPHA)
+  session.defaultSession.setPermissionCheckHandler((wc, permission) => permission === "media" && ours(wc))
+  session.defaultSession.setPermissionRequestHandler(async (wc, permission, done) => {
+    if (permission !== "media" || !ours(wc)) return done(false)
+    done(process.platform === "darwin" ? await systemPreferences.askForMediaAccess("camera") : true)
+  })
   const { workArea } = screen.getPrimaryDisplay()
   const win = new BrowserWindow({
     width: W,

@@ -12,6 +12,7 @@ import { Overlays } from "@/components/Overlays"
 import { Wipe } from "@/components/Wipe"
 import { useBoard } from "@/hooks/useBoard"
 import { useKeys } from "@/hooks/useKeys"
+import { useCameraBrake } from "@/hooks/useCameraBrake"
 import { useListening } from "@/hooks/useListening"
 import { useOutputs } from "@/hooks/useOutputs"
 import { api, type Gesture } from "@/lib/api"
@@ -26,6 +27,7 @@ export default function App() {
   const { s, setS, lost } = useBoard()
   const [started, setStarted] = useState(false)
   const [nerdOpen, setNerdOpen] = useState(false)
+  const camera = useCameraBrake()
   const open = !!s && s.headband.phase === "connected" && !s.headband.calibrating
   const ready = open && started // nothing reaches the board behind the connect screen or the start click
 
@@ -84,6 +86,7 @@ export default function App() {
             live={!lost && !!h?.live}
             listen={listen}
             nerdOpen={nerdOpen}
+            camera={camera}
             onRecalibrate={() => void api.calibrate()}
             onDisconnect={() => void api.disconnect()}
             onNerd={() => setNerdOpen((v) => !v)}

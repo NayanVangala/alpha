@@ -77,6 +77,8 @@ async function boardOrNull(r: Response) {
 export const api = {
   board: async () => (await (await fetch("/api/board")).json()) as BoardState,
   input: async (kind: Gesture, ago = 0) => boardOrNull(await post("/api/input", { kind, ago })),
+  /** the webcam saw the eyes close: the board brakes, labeled "camera" */
+  cameraBrake: () => post("/api/input", { kind: "eyes_closed", by: "camera" }),
   heard: async (text: string) => boardOrNull(await post("/api/heard", { text })),
   scan: async () => (await (await post("/api/scan")).json()) as { devices?: Device[]; error?: string | null },
   connect: (name: string) => post("/api/connect", { name }),

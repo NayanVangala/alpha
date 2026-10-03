@@ -9,6 +9,7 @@ import { FlickeringGrid } from "@/components/ui/flickering-grid"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { useBoard } from "@/hooks/useBoard"
+import { useCameraBrake } from "@/hooks/useCameraBrake"
 import { useDevices } from "@/hooks/useDevices"
 import { useKeys } from "@/hooks/useKeys"
 import { api, type BoardState, type Gesture, type Headband } from "@/lib/api"
@@ -29,6 +30,7 @@ const Key = ({ children }: { children: string }) => <b className="font-semibold 
  */
 export function Hud() {
   const { s, setS, lost } = useBoard()
+  const camera = useCameraBrake() // runs here, not in a browser tab: this window isn't throttled in the background
   const open = !!s && s.headband.phase === "connected" && !s.headband.calibrating
   const send = useCallback(
     async (kind: Gesture, ago = 0) => {
@@ -66,6 +68,18 @@ export function Hud() {
             <span className={cn("size-2 rounded-xs", !lost && s?.headband.live ? "bg-ultramarine" : "bg-idle")} />
             {lost ? "no board" : !open ? "not connected" : s?.brake ? "braked" : s?.claude_code ? "driving Claude" : "live"}
             {open && s?.headband.battery != null && batteryText(s.headband.battery).replace(" · battery ", " · ")}
+            <button
+              type="button"
+              aria-pressed={camera.state === "on"}
+              title={camera.message || "Camera brake: the webcam sees your eyes close and brakes Claude. Uses your camera."}
+              onClick={camera.toggle}
+              className={cn(
+                "ml-1 cursor-pointer rounded-sm border-0 bg-transparent px-1 text-tag [-webkit-app-region:no-drag]",
+                camera.state === "on" ? "font-semibold text-ultramarine" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {camera.state === "on" ? "camera on" : camera.state === "starting" ? "camera…" : camera.state === "error" ? "camera (!)" : "camera"}
+            </button>
             <button
               type="button"
               title="Close (⌃⌥Q)"

@@ -1,3 +1,4 @@
+import type { CameraBrake } from "@/hooks/useCameraBrake"
 import { Fragment, type MouseEvent, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
@@ -29,12 +30,13 @@ type HeaderProps = {
   live: boolean
   listen: { supported: boolean; listening: boolean; toggle: () => void }
   nerdOpen: boolean
+  camera: CameraBrake
   onRecalibrate: () => void
   onDisconnect: () => void
   onNerd: () => void
 }
 
-export function Header({ status, live, listen, nerdOpen, onRecalibrate, onDisconnect, onNerd }: HeaderProps) {
+export function Header({ status, live, listen, nerdOpen, camera, onRecalibrate, onDisconnect, onNerd }: HeaderProps) {
   return (
     <header className="flex items-center justify-between gap-4 px-[var(--pad-x)] pt-5">
       <div className="flex items-center gap-2.5 text-[1.2rem] font-semibold tracking-[-0.03em]">
@@ -54,6 +56,10 @@ export function Header({ status, live, listen, nerdOpen, onRecalibrate, onDiscon
         </TextButton>
         <TextButton onClick={onRecalibrate}>Recalibrate</TextButton>
         <TextButton onClick={onDisconnect}>Disconnect</TextButton>
+        <TextButton onClick={camera.toggle} pressed={camera.state === "on" || camera.state === "starting"} title={camera.message || "The webcam sees your eyes close and brakes Claude. Uses your camera."}>
+          Camera brake{camera.state === "starting" ? "…" : camera.state === "error" ? " (!)" : ""}
+        </TextButton>
+        {camera.state === "error" && <span className="max-w-[28ch] truncate" title={camera.message}>{camera.message}</span>}
         <TextButton onClick={onNerd} pressed={nerdOpen}>
           Stats for nerds
         </TextButton>
