@@ -84,8 +84,10 @@ class Coach:
         self.on_gesture = on_gesture  # board input: (kind, ago_s)
         self.on_presence = on_presence  # board: the headband came off or went quiet (reason)
         self.off_since, self.lost_told, self.presence_at = None, False, 0.0
-        axes = json.loads(HEAD_AXES.read_text()) if HEAD_AXES.exists() else {}
-        self.head = NodShakeDetector(axes.get("nod", 1), axes.get("shake", 2))
+        # nods and shakes only count once scripts/check_nod.py has measured this wearer's axes: guessed axes could
+        # deny a safe step when the wearer just looks around
+        axes = json.loads(HEAD_AXES.read_text()) if HEAD_AXES.exists() else None
+        self.head = NodShakeDetector(axes["nod"], axes["shake"]) if axes else None
         self.nudge, self.app_name, self.clock, self.sleep = nudge, app_name, clock, sleep
         self.want_calibration = True
         self.running = True
@@ -270,7 +272,7 @@ class Coach:
         self.state["live"] = True
         self.eeg_tail.extend(eeg.T)
         gyro = d.get("gyro")
-        if gyro is not None and gyro.shape[1] and self.on_gesture and not self.state["calibrating"]:
+        if self.head and gyro is not None and gyro.shape[1] and self.on_gesture and not self.state["calibrating"]:
             for kind in self.head.feed(gyro):
                 self.on_gesture(kind, 0.0)
         if now - self.presence_at >= 1.0:

@@ -26,31 +26,54 @@ def say(text):
 
 
 def record(source, seconds):
-    got, end = [], time.time() + seconds
+    """Gyro and accelerometer for `seconds`: two (3, n) arrays."""
+    gyro, accel, end = [], [], time.time() + seconds
     while time.time() < end:
         time.sleep(0.05)
-        g = source.read().get("gyro")
-        if g is not None and g.shape[1]:
-            got.append(g)
-    return np.hstack(got) if got else np.empty((3, 0))
+        d = source.read()
+        for out, key in ((gyro, "gyro"), (accel, "accel")):
+            if d.get(key) is not None and d[key].shape[1]:
+                out.append(d[key])
+    return (np.hstack(gyro) if gyro else np.empty((3, 0)), np.hstack(accel) if accel else np.empty((3, 0)))
 
 
 def main():
     source = MuseSource()
     print("Connecting to the Muse (can take ~10 s)…", flush=True)
-    source.start()
+    for attempt in range(6):  # about a minute: it may still be off, or asleep
+        try:
+            source.start()
+            break
+        except RuntimeError:
+            if attempt == 5:
+                raise
+            if attempt == 0:
+                say("I can't find the headband. Hold its button until the lights sweep.")
     try:
         record(source, 3)  # settle
-        say("Nod yes, slowly, again and again, until I say stop.")
-        nods = record(source, 8)
-        say("Stop. Now shake your head no, again and again.")
-        shakes = record(source, 8)
-        say("Stop. Sit still.")
-        still = record(source, 5)
+        say("Look at the screen. Nod yes, chin all the way down to your chest and back up, ten times, starting now.")
+        record(source, 1)  # a beat to react
+        nods, nods_a = record(source, 8)
+        say("Stop. Now turn your head all the way left, then all the way right, ten times, starting now.")
+        record(source, 1)
+        shakes, shakes_a = record(source, 8)
+        say("Stop. Now sit completely still, looking at the screen.")
+        record(source, 2)
+        still, still_a = record(source, 5)
     finally:
         source.stop()
     if min(nods.shape[1], shakes.shape[1], still.shape[1]) < IMU_FS * 3:
-        sys.exit("Not enough gyroscope data came through: is the headband sending it?")
+        sys.exit(f"Not enough gyroscope data came through (nods {nods.shape[1]}, shakes {shakes.shape[1]}, still {still.shape[1]} samples; "
+                 f"about {8 * IMU_FS}, {8 * IMU_FS} and {5 * IMU_FS} expected): the stream dropped out, so power-cycle the headband and rerun.")
+    stamp = time.strftime("%Y%m%d_%H%M%S")
+    Path("data").mkdir(exist_ok=True)
+    np.savez(f"data/nod_check_{stamp}.npz", nods=nods, shakes=shakes, still=still, nods_a=nods_a, shakes_a=shakes_a, still_a=still_a)
+    for name, g in (("nodding", nods), ("shaking", shakes), ("still", still)):  # what each second looked like
+        per = [np.round(np.sqrt(np.mean(np.square(g[:, i : i + IMU_FS] - g[:, i : i + IMU_FS].mean(axis=1, keepdims=True)), axis=1))) for i in range(0, g.shape[1] - IMU_FS + 1, IMU_FS)]
+        print(f"  {name:8} per second, x/y/z RMS: " + "  ".join("/".join(f"{int(v)}" for v in row) for row in per))
+    for name, a in (("nodding", nods_a), ("shaking", shakes_a), ("still", still_a)):
+        if a.shape[1]:
+            print(f"  accel swing while {name:8} (peak-to-peak g, x/y/z): {np.round(np.ptp(a, axis=1), 2)}")
     rms = lambda g: np.sqrt(np.mean(np.square(g - g.mean(axis=1, keepdims=True)), axis=1))  # noqa: E731
     n, s, q = rms(nods), rms(shakes), rms(still)
     nod_axis, shake_axis = int(np.argmax(n)), int(np.argmax(s))
