@@ -1,6 +1,8 @@
 import { type Gaze, type GazeSource, startGaze } from "@/lib/gaze"
+import { TileTracker, calibrationHolds } from "@/lib/gazeKit"
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const status = $("status"), dot = $("dot"), picked = $("picked"), cal = $("cal"), calDot = cal.querySelector("i") as HTMLElement
 const targets = ["Home", "Back", "Search", "Videos", "Read", "Stop"].map((name) => {
   const el = document.createElement("div")
@@ -14,13 +16,42 @@ let on: HTMLElement | null = null
 let testing = false
 let buf: Gaze[] = []
 let openNow: number | null = null
+const tracker = new TileTracker()  // sticky borders: a tile lights after 300 ms inside it, and holds until you truly leave
+let lastOk = 0
+const rects = () => targets.map((t) => t.getBoundingClientRect())
 const onGaze = ({ x, y, ok, open }: Gaze) => {
   openNow = open
   if (testing) buf.push({ x, y, ok, open })
   dot.style.transform = `translate(${x}px, ${y}px)`
+  if (ok) lastOk = performance.now()
   dot.classList.toggle("lost", !ok)
-  const under = ok ? targets.find((t) => { const r = t.getBoundingClientRect(); return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom }) ?? null : null
+  const idx = ok ? tracker.update(rects(), x, y, performance.now()) : tracker.current
+  const under = idx >= 0 ? targets[idx] : null
   if (under !== on) { on?.classList.remove("on"); under?.classList.add("on"); on = under }
+}
+setInterval(() => { if (lastOk && performance.now() - lastOk > 500) dot.classList.add("lost") }, 150)  // a stale reading isn't where you are looking
+
+/* The startup check: a dot appears on a tile; the calibration passes only if the median gaze lands within half a tile of it. */
+const val = $("val")
+async function checkCalibration() {
+  if (source?.mode !== "eyedid" || !localStorage.getItem("alpha.gaze.cal")) return void (status.textContent = "Calibrate once first, then the check can run.")
+  const tile = targets[Math.floor(Math.random() * targets.length)]
+  const r = tile.getBoundingClientRect()
+  const target = { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+  val.style.left = `${target.x}px`
+  val.style.top = `${target.y}px`
+  val.style.display = "block"
+  status.textContent = "Calibration check: look at the dot."
+  testing = true
+  buf = []
+  await sleep(2200)
+  testing = false
+  val.style.display = "none"
+  const samples = buf.filter((g) => g.ok).slice(Math.floor(buf.length / 2))
+  const res = calibrationHolds(samples, target, Math.min(r.width, r.height))
+  status.textContent = res.pass
+    ? `Calibration check passed: your gaze lands within ${Math.round(res.median)} px of the dot.`
+    : `Calibration check FAILED (${res.n < 10 ? `only ${res.n} readings` : `${Math.round(res.median)} px off`}): press Calibrate and try again.`
 }
 
 let fired = 0
@@ -40,6 +71,7 @@ async function begin(mouse: boolean) {
   try {
     source = await startGaze(onGaze, { mouse, onEyesClosed })
     status.textContent = source.mode === "eyedid" ? "Eye tracking on. Calibrate once, then look at a target." : "Mouse stand-in (no eye tracking): the dot follows your mouse."
+    if (source.mode === "eyedid" && localStorage.getItem("alpha.gaze.cal")) setTimeout(checkCalibration, 800)  // every startup re-checks the saved calibration
   } catch (e) {
     status.textContent = `${(e as Error).message} Using the mouse stand-in.`
     source = await startGaze(onGaze, { mouse: true, onEyesClosed })
@@ -56,6 +88,7 @@ $("cal-btn").addEventListener("click", async () => {
       calDot.style.opacity = String(1 - 0.6 * progress)
     })
     status.textContent = "Calibrated and saved on this computer."
+    setTimeout(checkCalibration, 700)
   } catch (e) {
     status.textContent = (e as Error).message
   } finally {
@@ -70,7 +103,6 @@ begin(false)
 
 /* The accuracy test: each of the six targets lights up twice, in random order, for two seconds. A target counts as hit when
    most of the gaze samples from the second half (once the eyes have landed) fall inside it. */
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 $("test-btn").addEventListener("click", async () => {
   if (testing) return
   testing = true
@@ -99,7 +131,8 @@ $("test-btn").addEventListener("click", async () => {
   const need = Number.isFinite(mean) ? Math.ceil((2 * mean) / 10) * 10 : 0
   const small = Math.round(Math.min(...targets.map((t) => Math.min(t.getBoundingClientRect().width, t.getBoundingClientRect().height))))
   result.style.display = "block"
-  result.innerHTML = `<b>${hits} of ${order.length} targets hit (${Math.round((100 * hits) / order.length)}%)</b><br>` +
+  const rate = hits / order.length
+  result.innerHTML = `<b>${hits} of ${order.length} targets hit (${Math.round(100 * rate)}%) · ${rate >= 0.9 ? "PASS" : "FAIL: the bar is 90%"}</b><br>` +
     (Number.isFinite(mean) ? `Average distance from the target's centre: ${Math.round(mean)} px. Targets about ${need} px across or bigger should be reliable; these are ${small} px.` : "No usable gaze samples: calibrate, sit about an arm's length from the screen, and try again.")
   status.textContent = "Accuracy test done."
 })
