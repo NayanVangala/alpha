@@ -40,6 +40,7 @@
 
 import json
 import math
+import os
 import re
 import threading
 import time
@@ -53,6 +54,7 @@ PICK_PAUSE_S = 0.8  # extra time on the first tile after the screen changes
 BACK_S = 3.0
 HELP_S = 5.0
 MAX_LOOKBACK_S = 3.0
+GATE_BITE_S = 1.0  # a risky step needs a bite held about this long: a chew, a yawn or a stray clench can't approve it
 FINDING_S = 5.0  # longest the board waits for AI options before using the plain sentence
 HELP_TEXT = "I need help now."
 GUESSES = 3  # sentences from history that lead Home
@@ -152,6 +154,7 @@ class Board:
         self.question = None  # the agent question on screen
         self.answers = OrderedDict()  # question id -> the picked option, or None when the wearer went back
         self.brake_until = 0.0  # the agent may not take another step before this
+        self.brake_enabled = os.environ.get("REIN_BRAKE", "on").lower() != "off"  # REIN_BRAKE=off: closed eyes stop nothing (for hacking on the project, not for demos)
         self.auto_at = None  # when the agent question on screen answers itself with rein's guess
         self.auto_streak = 0  # automatic "what next" answers since the wearer last picked one
         self.talk_at = None  # when the guessed sentence on screen says itself
@@ -341,6 +344,8 @@ class Board:
         """
         with self.lock:
             self.tick()
+            if kind == "eyes_closed" and not self.brake_enabled:
+                return
             self.counts["keys" if by == "keys" else "wearer"] += 1
             who = by if by in ("keys", "camera") else "head" if kind in ("nod", "shake") else "brain" if kind == "eyes_closed" else "muscle"
             if kind in ("nod", "shake"):  # a nod says yes and a shake says no, on Claude's questions only
@@ -386,6 +391,9 @@ class Board:
                     # still finding options: a clench takes the plain sentence right away
                     self._confirm(tiles[self._lit_at(self.clock() - ago)]["label"] if tiles else self.leaf["phrase"])
                 elif self.screen == "agent":
+                    if self.question["kind"] == "permission" and not self.question["auto"] and by == "headband" and ago < GATE_BITE_S:
+                        self._out("notice", "Hold the bite for a full second to approve this.")
+                        return
                     picked = self._tiles()[self._lit_at(self.clock() - ago)]["label"]
                     kind = self.question["kind"]
                     self._note(picked if kind == "next" else self.question["detail"],
@@ -596,7 +604,8 @@ class Board:
                 "notice": self.notice,
                 "narrate": self.narrate,
                 "took": self.took,
-                "agent": {k: self.question[k] for k in ("kind", "title", "detail")} if self.screen == "agent" else None,
+                "agent": {**{k: self.question[k] for k in ("kind", "title", "detail")}, "gate": self.question["kind"] == "permission" and not self.question["auto"]}
+                if self.screen == "agent" else None,
                 "brake": now < self.brake_until,
                 # mind reader: seconds until the guessed sentence on screen says itself
                 "talk_s": max(0.0, self.talk_at - now) if self.talk_at is not None and not self.overlay else None,

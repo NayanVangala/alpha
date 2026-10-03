@@ -157,7 +157,7 @@ def on_permission(event, ask):
     if (m := BROWSER.match(event.get("tool_name", ""))) and m.group(1) in LOOK_ONLY:
         return {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "allow"}}}
     title, detail, risky = describe(event.get("tool_name", ""), event.get("tool_input") or {}, event.get("cwd", ""))
-    picked = ask("permission", title, detail, ["Deny", "Allow"] if risky else ["Allow", "Deny"], auto=not risky)
+    picked = ask("permission", title, detail, ["Allow", "Deny"], auto=not risky)  # risky: no countdown, so Allow waits for a held bite
     if picked is None:
         return None
     decision = {"behavior": "allow"} if picked == "Allow" else {"behavior": "deny", "message": NO}

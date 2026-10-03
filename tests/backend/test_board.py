@@ -3,6 +3,7 @@ import json
 import pytest
 
 from src.backend.board import (
+    GATE_BITE_S,
     AUTO_S,
     BACK_S,
     FINDING_S,
@@ -399,7 +400,8 @@ def test_an_agent_question_waits_for_home_and_one_bite_answers_it(b):
     assert s["screen"] == "agent" and s["agent"]["detail"] == "npm test"
     assert [t["label"] for t in s["tiles"]] == ["Allow", "Deny"] and s["tiles"][0]["guess"] and s["lit"] == 0
     b.handle("glance_right")
-    b.handle("clench")
+    b.clock_.t += 2  # the highlight rests on Deny before the jaw closes
+    b.handle("clench", ago=GATE_BITE_S)
     assert b.answer_of(1) == (True, "Deny") and b.state()["screen"] == "menu"
     assert b.state()["notice"]["text"] == "Deny: npm test"
 
@@ -451,7 +453,7 @@ def test_autopilot_runs_alphas_guess_unless_the_wearer_steps_in(b):
     b.clock_.t += 10
     assert b.answer_of(2) == (False, None) and b.state()["auto_s"] is None
     b.handle("clench")  # Deny, picked by hand
-    b.ask(3, "permission", "Claude wants to run", "rm -rf build", ["Deny", "Allow"], auto=False)  # risky: waits
+    b.ask(3, "permission", "Claude wants to run", "rm -rf build", ["Allow", "Deny"], auto=False)  # risky: waits
     b.clock_.t += 10
     assert b.answer_of(3) == (False, None)
 
@@ -478,8 +480,10 @@ def test_autopilot_takes_at_most_three_next_steps_in_a_row(b):
 
 
 def test_after_a_no_the_autopilot_waits_for_the_wearer(b):
-    b.ask(1, "permission", "Claude wants to run", "git commit -m fix", ["Deny", "Allow"])
-    b.handle("clench")  # Deny
+    b.ask(1, "permission", "Claude wants to run", "git commit -m fix", ["Allow", "Deny"])
+    b.handle("glance_right", by="keys")
+    b.clock_.t += 2
+    b.handle("clench", ago=GATE_BITE_S)  # Deny
     b.ask(2, "next", "Claude finished", "Declined.", ["Retry commit", "Keep going", "I'm done"], auto=True)
     s = b.state()
     assert s["auto_s"] is None and s["agent"]["title"] == "You said no"  # no carrying on with its workaround
@@ -504,9 +508,10 @@ def test_eyes_closed_on_whats_next_lights_the_next_guess_and_restarts_the_countd
 def test_the_ledger_counts_who_decided(b):
     b.ask(1, "permission", "Claude wants to run", "pytest", ["Allow", "Deny"], auto=True)
     b.handle("clench", by="keys")
-    b.ask(2, "permission", "Claude wants to run", "git push", ["Deny", "Allow"])
+    b.ask(2, "permission", "Claude wants to run", "git push", ["Allow", "Deny"])
     b.handle("glance_right", by="keys")
-    b.handle("clench")
+    b.clock_.t += 2
+    b.handle("clench", ago=GATE_BITE_S)
     s = b.state()
     assert [e["by"] for e in s["ledger"]] == ["keys", "muscle"]
     assert s["counts"] == {"decisions": 2, "wearer": 1, "keys": 2}
@@ -591,3 +596,31 @@ def test_the_board_says_aloud_what_claude_wants_and_when_it_is_stopped(b):
     b.braked()
     b.handle("eyes_closed")
     assert b.state()["narrate"]["text"] == "Stopped."
+
+
+def test_a_risky_step_needs_a_held_bite_to_approve(b):
+    b.ask(1, "permission", "Claude wants to run", "git push", ["Allow", "Deny"], auto=False)
+    st = b.state()
+    assert st["agent"]["gate"] and st["lit"] == 0 and st["auto_s"] is None  # full-screen gate: Allow waits for the bite, nothing counts down
+    b.handle("clench", ago=0.6)  # a short bite: a chew, a yawn
+    assert b.answer_of(1) == (False, None) and b.state()["notice"]["text"] == "Hold the bite for a full second to approve this."
+    b.clock_.t += 60
+    assert b.answer_of(1) == (False, None)  # silence never approves
+    b.handle("clench", ago=GATE_BITE_S)
+    assert b.answer_of(1) == (True, "Allow")
+    b.ask(2, "permission", "Claude wants to run", "git push", ["Allow", "Deny"], auto=False)
+    b.handle("clench", by="keys")  # the keyboard stand-in has no duration
+    assert b.answer_of(2) == (True, "Allow")
+    b.ask(3, "permission", "Claude wants to run", "pytest", ["Allow", "Deny"], auto=True)
+    assert not b.state()["agent"]["gate"]
+    b.handle("clench", by="keys")
+    b.ask(4, "permission", "Claude wants to run", "git push", ["Allow", "Deny"], auto=False)
+    b.handle("eyes_closed")
+    assert b.answer_of(4) == (True, "Deny") and b.braked()  # closing the eyes vetoes it
+
+
+def test_the_brake_can_be_switched_off_for_hacking(b):
+    b.brake_enabled = False
+    b.ask(1, "permission", "Claude wants to run", "git push", ["Allow", "Deny"], auto=False)
+    b.handle("eyes_closed")
+    assert not b.braked() and b.answer_of(1) == (False, None)

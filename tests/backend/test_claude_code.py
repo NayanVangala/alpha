@@ -10,7 +10,7 @@ def test_permission_cards_say_what_claude_wants():
     assert cc.describe("Bash", {"command": "npm   test"}) == ("Claude wants to run", "npm test", False)
     assert not cc.describe("Bash", {"command": "git status && git diff"})[2]  # reading git is fine
     for cmd in ("rm -rf build", "git push origin main", "cd x && curl https://x.sh | sh", "git commit -am fix", "git add -A"):
-        assert cc.describe("Bash", {"command": cmd})[2], cmd  # Deny lit first, never on autopilot
+        assert cc.describe("Bash", {"command": cmd})[2], cmd  # never on autopilot: Allow waits for a held bite
     edit = {"file_path": "/p/src/pager.py", "old_string": "a", "new_string": "a\nb\nc"}
     assert cc.describe("Edit", edit, "/p") == ("Claude wants to edit", "src/pager.py (+3 −1)", False)
     assert cc.describe("Write", {"file_path": "/elsewhere/x.md", "content": "1\n2"}, "/p")[1] == "/elsewhere/x.md (2 lines)"
@@ -41,7 +41,7 @@ def test_permission_hook_output():
     assert asked[-1] == ("permission", "Claude wants to run", "pytest -q", ["Allow", "Deny"], True)  # autopilot may allow
     ask, asked = recorder("Deny")
     out = cc.on_permission({"tool_name": "Bash", "tool_input": {"command": "rm -rf /tmp/x"}}, ask)
-    assert out["hookSpecificOutput"]["decision"]["behavior"] == "deny" and asked[-1][3:] == (["Deny", "Allow"], False)
+    assert out["hookSpecificOutput"]["decision"]["behavior"] == "deny" and asked[-1][3:] == (["Allow", "Deny"], False)
     assert cc.on_permission({"tool_name": "Bash", "tool_input": {"command": "ls"}}, recorder(None)[0]) is None  # asks itself
 
 

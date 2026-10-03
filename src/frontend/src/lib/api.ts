@@ -50,8 +50,8 @@ export type BoardState = {
   /** what the board says aloud about Claude: each question, and when it's stopped */
   narrate: Out | null
   took: { id: number; n: number; glances: number } | null
-  /** a question from the coding agent (Claude Code) while screen is "agent" */
-  agent: { kind: "permission" | "next"; title: string; detail: string } | null
+  /** a question from the coding agent (Claude Code) while screen is "agent"; gate: a risky step, which waits for a held bite */
+  agent: { kind: "permission" | "next"; title: string; detail: string; gate: boolean } | null
   /** the wearer closed their eyes: the coding agent stops before its next step */
   brake: boolean
   /** autopilot: seconds until rein does its guess, and the whole countdown */

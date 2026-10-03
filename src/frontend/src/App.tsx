@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Toaster, toast } from "sonner"
 import { Crumbs, Header, KeysLegend, StartOverlay } from "@/components/Chrome"
 import { AgentAsk } from "@/components/AgentAsk"
@@ -9,6 +9,7 @@ import { Deck } from "@/components/Deck"
 import { Gate } from "@/components/Gate"
 import { NerdPanel } from "@/components/NerdPanel"
 import { Overlays } from "@/components/Overlays"
+import { RiskGate } from "@/components/RiskGate"
 import { Wipe } from "@/components/Wipe"
 import { useBoard } from "@/hooks/useBoard"
 import { useKeys } from "@/hooks/useKeys"
@@ -30,6 +31,14 @@ export default function App() {
   const camera = useCameraBrake()
   const open = !!s && s.headband.phase === "connected" && !s.headband.calibrating && s.headband.calibration_ok !== false
   const ready = open && started // nothing reaches the board behind the connect screen or the start click
+
+  useEffect(() => {
+    // while the board is up and the headband is on, rein drives Claude Code (the floating window does the same)
+    if (!ready) return
+    void api.arm().catch(() => {})
+    const id = setInterval(() => void api.arm().catch(() => {}), 2000)
+    return () => clearInterval(id)
+  }, [ready])
 
   const send = useCallback(
     async (kind: Gesture, ago = 0) => {
@@ -102,6 +111,7 @@ export default function App() {
           <KeysLegend />
         </div>
       )}
+      {ready && s.screen === "agent" && s.agent?.gate && !s.overlay && <RiskGate s={s} />}
       {s && open && <Overlays s={s} />}
       {s && open && !started && <StartOverlay onStart={start} />}
       <NerdPanel open={nerdOpen} />

@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "motion/react"
 import { useCallback, useEffect, useRef } from "react"
 import { BorderBeam } from "@/components/BorderBeam"
 import { Brake } from "@/components/Brake"
+import { RiskGate } from "@/components/RiskGate"
 import { BrainPanel } from "@/components/Brain"
 import { Autopilot, auraOpacity } from "@/components/Mind"
 import { FlickeringGrid } from "@/components/ui/flickering-grid"
@@ -115,6 +116,8 @@ export function Hud() {
             </p>
             <Progress value={((s.left_s ?? 0) / 3) * 100} className="h-2 rounded-xs bg-border" />
           </div>
+        ) : s.screen === "agent" && s.agent?.gate ? (
+          <RiskGate s={s} compact />
         ) : (
           <>
             {s.brake && <Brake compact className="px-3 py-1.5" />}
