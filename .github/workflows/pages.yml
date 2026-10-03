@@ -1,0 +1,49 @@
+name: Deck
+
+# Builds the frontend and publishes the deck (landing.html) as the site's home page.
+# The app itself needs a headband and a local server, so only the deck is hosted.
+on:
+  push:
+    branches: [main]
+    paths: ["src/frontend/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+      - run: npm ci && npm run build
+        working-directory: src/frontend
+      - run: |
+          cp dist/landing.html dist/index.html
+          echo alphabrake.xyz > dist/CNAME
+          touch dist/.nojekyll
+        working-directory: src/frontend
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: src/frontend/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
