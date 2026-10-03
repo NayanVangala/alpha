@@ -1,5 +1,6 @@
 import type { CameraBrake } from "@/hooks/useCameraBrake"
-import { Fragment, type MouseEvent, type ReactNode } from "react"
+import { isNarrating, setNarrating } from "@/lib/speech"
+import { Fragment, type MouseEvent, type ReactNode, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
 import type { BoardState } from "@/lib/api"
@@ -37,6 +38,7 @@ type HeaderProps = {
 }
 
 export function Header({ status, live, listen, nerdOpen, camera, onRecalibrate, onDisconnect, onNerd }: HeaderProps) {
+  const [narrating, setNarr] = useState(isNarrating)
   return (
     <header className="flex items-center justify-between gap-4 px-[var(--pad-x)] pt-5">
       <div className="flex items-center gap-2.5 text-[1.2rem] font-semibold tracking-[-0.03em]">
@@ -56,6 +58,16 @@ export function Header({ status, live, listen, nerdOpen, camera, onRecalibrate, 
         </TextButton>
         <TextButton onClick={onRecalibrate}>Recalibrate</TextButton>
         <TextButton onClick={onDisconnect}>Disconnect</TextButton>
+        <TextButton
+          onClick={() => {
+            setNarrating(!narrating)
+            setNarr(!narrating)
+          }}
+          pressed={narrating}
+          title="Reads each of Claude's questions aloud, and says when it's stopped"
+        >
+          Narration
+        </TextButton>
         <TextButton onClick={camera.toggle} pressed={camera.state === "on" || camera.state === "starting"} title={camera.message || "The webcam sees your eyes close and brakes Claude. Uses your camera."}>
           Camera brake{camera.state === "starting" ? "…" : camera.state === "error" ? " (!)" : ""}
         </TextButton>

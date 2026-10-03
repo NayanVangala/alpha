@@ -101,6 +101,29 @@ def load_menu(path=MENU, contacts=()):
     return menu
 
 
+NUMBER_WORDS = {2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight", 9: "nine", 10: "ten"}
+SPOKEN_DETAIL = 70  # characters of the command or file read aloud: a long commit message isn't
+
+
+def spoken(q, counting, seconds):
+    """What the board says aloud when one of Claude's questions comes up: short, plain, no symbols.
+
+    counting: the autopilot countdown is running (a safe step, nothing holding it). Risky steps say they need a bite.
+    """
+    detail = re.sub(r"\s*\([^)]*\)", "", q["detail"]).strip()  # "(+1 −1)" and the like read badly
+    if len(detail) > SPOKEN_DETAIL:
+        detail = detail[:SPOKEN_DETAIL].rsplit(" ", 1)[0]
+    wait = f"Going ahead in {NUMBER_WORDS.get(int(seconds), str(int(seconds)))} seconds."
+    if q["kind"] == "next":
+        if not counting:
+            return "Claude finished. Waiting for your next instruction."
+        return f"Claude finished. Next up: {q['options'][0].rstrip('.').lower()}. {wait}"
+    head = f"{q['title']} {detail}.".replace("  ", " ")
+    if not q["auto"]:
+        return f"{head} This one needs a bite."
+    return f"{head} {wait}" if counting else f"{head} Waiting for you."
+
+
 class Board:
     def __init__(self, menu, clock=time.monotonic, scan_s=None, act=None, suggest=None, remember=None, recall=None,
                  reply=None):
@@ -119,7 +142,7 @@ class Board:
         self.reply_token = 0
         self.lock = threading.RLock()
         self.n_out = self.token = 0
-        self.said = self.alert = self.notice = None  # latest {"id", "text"}; the page shows or voices each id once
+        self.said = self.alert = self.notice = self.narrate = None  # latest {"id", "text"}; the page shows or voices each id once
         self.recent = OrderedDict()  # id -> text of recent outputs, so /api/speech only voices what the board said
         self.said_log = deque(maxlen=20)  # context for the AI's options
         self.asks = deque()  # agent questions waiting for the wearer to be free
@@ -221,6 +244,7 @@ class Board:
         if q["kind"] == "next" and self.declined and not braked:
             q["title"] = "You said no"
         self._arm_auto(0)
+        self._out("narrate", spoken(q, self.auto_at is not None, AUTO_S[q["kind"]]))
 
     def _arm_auto(self, card):
         """Alpha does `card` after the countdown, unless the agent is braked or it's the wearer's call."""
@@ -418,9 +442,11 @@ class Board:
                 newly = self.clock() >= self.brake_until
                 if newly:
                     self._out("notice", "Brake on: Claude stops before its next step.")
+                    self._out("narrate", "Stopped.")
                 self.brake_until = self.clock() + BRAKE_S
                 if self.screen == "agent" and not self.overlay:  # a permission card (a next card returned above)
                     self._out("notice", f"Eyes closed: stopped {self.question['detail'][:60]}")
+                    self._out("narrate", "Stopped.")
                     self._note(self.question["detail"], "no", who)
                     self.declined = True
                     self._answer("Deny")  # vetoed: it doesn't happen
@@ -505,6 +531,7 @@ class Board:
             newly = self.clock() >= self.brake_until
             self.brake_until = self.clock() + BRAKE_S
             self._out("notice", f"{reason}: Claude stops before its next step.")
+            self._out("narrate", f"{reason}. Claude is stopped.")
             if self.screen == "agent" and not self.overlay and self.question["kind"] == "permission":
                 self._note(self.question["detail"], "no", "presence")
                 self.declined = True
@@ -564,6 +591,7 @@ class Board:
                 "said": self.said,
                 "alert": self.alert,
                 "notice": self.notice,
+                "narrate": self.narrate,
                 "took": self.took,
                 "agent": {k: self.question[k] for k in ("kind", "title", "detail")} if self.screen == "agent" else None,
                 "brake": now < self.brake_until,

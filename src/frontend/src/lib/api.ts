@@ -42,6 +42,8 @@ export type BoardState = {
   said: Out | null
   alert: Out | null
   notice: Out | null
+  /** what the board says aloud about Claude: each question, and when it's stopped */
+  narrate: Out | null
   took: { id: number; n: number; glances: number } | null
   /** a question from the coding agent (Claude Code) while screen is "agent" */
   agent: { kind: "permission" | "next"; title: string; detail: string } | null

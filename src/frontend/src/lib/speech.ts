@@ -55,3 +55,21 @@ export function play(out: Out, urgent = false) {
   audio.play().catch(fallback)
   setTimeout(fallback, 3000) // too slow: don't leave the room waiting
 }
+
+const NARRATE = "alpha.narrate"
+/** Narration: the board reads each of Claude's questions aloud, and says when it's stopped. On unless the wearer turns it off. */
+export function isNarrating() {
+  try {
+    return localStorage.getItem(NARRATE) !== "0"
+  } catch {
+    return true
+  }
+}
+export function setNarrating(on: boolean) {
+  try {
+    localStorage.setItem(NARRATE, on ? "1" : "0")
+  } catch {
+    /* private window: it just won't be remembered */
+  }
+  if (!on && "speechSynthesis" in window) speechSynthesis.cancel()
+}

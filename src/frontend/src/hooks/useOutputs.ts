@@ -1,17 +1,17 @@
 import { useEffect, useRef } from "react"
 import { toast } from "sonner"
 import type { BoardState, Out } from "@/lib/api"
-import { play } from "@/lib/speech"
+import { isNarrating, play } from "@/lib/speech"
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`
 
 /** Voice and toast each new thing the board said, sent or raised, once. Nothing old replays on load. */
 export function useOutputs(s: BoardState | null) {
-  const seen = useRef<{ said: number; alert: number; notice: number } | null>(null)
+  const seen = useRef<{ said: number; alert: number; notice: number; narrate: number } | null>(null)
   useEffect(() => {
     if (!s) return
     if (!seen.current) {
-      seen.current = { said: s.said?.id ?? 0, alert: s.alert?.id ?? 0, notice: s.notice?.id ?? 0 }
+      seen.current = { said: s.said?.id ?? 0, alert: s.alert?.id ?? 0, notice: s.notice?.id ?? 0, narrate: s.narrate?.id ?? 0 }
       return
     }
     const took = (out: Out) => {
@@ -28,6 +28,11 @@ export function useOutputs(s: BoardState | null) {
       was.said = s.said.id
       play(s.said)
       toast(`Said${took(s.said)}: “${s.said.text}”`)
+    }
+    if (s.narrate && s.narrate.id > was.narrate) {
+      was.narrate = s.narrate.id
+      // a stop cuts across whatever is being said; a question waits its turn
+      if (isNarrating()) play(s.narrate, /^(Stopped|Headband)/.test(s.narrate.text))
     }
     if (s.notice && s.notice.id > was.notice) {
       was.notice = s.notice.id

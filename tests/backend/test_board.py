@@ -574,3 +574,20 @@ def test_a_nod_says_yes_and_a_shake_says_no_but_a_nod_never_approves_risk(b):
     b.ask(3, "next", "Claude finished", "Done.", ["Run the tests", "Commit this", "I'm done"], True)
     b.handle("shake")
     assert b.answer_of(3) == (False, None)  # not that one: the next guess lights, the question stays
+
+
+def test_the_board_says_aloud_what_claude_wants_and_when_it_is_stopped(b):
+    from src.backend.board import spoken
+
+    q = {"kind": "permission", "title": "Claude wants to edit", "detail": "pager.py (+1 −1)", "options": ["Allow", "Deny"], "auto": True}
+    assert spoken(q, True, 6) == "Claude wants to edit pager.py. Going ahead in six seconds."
+    assert spoken({**q, "auto": False, "detail": "git commit -m fix"}, False, 6).endswith("This one needs a bite.")
+    assert spoken(q, False, 6).endswith("Waiting for you.")  # braked: no countdown to promise
+    nxt = {"kind": "next", "title": "Claude finished", "detail": "Done.", "options": ["Run the tests.", "I'm done"], "auto": True}
+    assert spoken(nxt, True, 6) == "Claude finished. Next up: run the tests. Going ahead in six seconds."
+    assert spoken({**q, "detail": "x " * 80}, True, 6).count("x") <= 36  # a long command isn't read in full
+    b.ask(1, "permission", "Claude wants to run", "pytest", ["Allow", "Deny"], True)
+    assert b.state()["narrate"]["text"] == "Claude wants to run pytest. Going ahead in six seconds."
+    b.braked()
+    b.handle("eyes_closed")
+    assert b.state()["narrate"]["text"] == "Stopped."
