@@ -44,7 +44,7 @@ export function Gate({ h, onConnectClick }: { h: Headband; onConnectClick: () =>
         />
         <p className="m-0 max-w-[46ch] text-body text-muted-foreground">
           {calibrating
-            ? "Twenty seconds sitting upright, jaw relaxed, blinking normally. That's how the board learns what your bite and blinks look like."
+            ? "Twenty seconds sitting upright, jaw relaxed, eyes open, reading this screen. Don't stare into space: the board learns your normal, awake brain waves, and your eyes-closed brake is measured against them."
             : "Hold the Muse's button until the lights sweep. Alpha opens once it's connected and has learned your jaw and blinks."}
         </p>
 
@@ -55,7 +55,7 @@ export function Gate({ h, onConnectClick }: { h: Headband; onConnectClick: () =>
               <small className="ml-2.5 text-body font-normal tracking-[-0.01em] text-muted-foreground">seconds</small>
             </p>
             <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
-              {["Sit upright", "Jaw relaxed", "Blink normally"].map((x) => (
+              {["Sit upright", "Jaw relaxed", "Read, eyes open"].map((x) => (
                 <li key={x} className="rounded-full bg-card px-3 py-1.5 text-label">
                   {x}
                 </li>
