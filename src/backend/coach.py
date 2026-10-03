@@ -1,7 +1,9 @@
 """Coach loop: read the headband, run the detectors, log events per frontmost app, nudge."""
 
 import sqlite3
+import json
 import time
+from pathlib import Path
 import traceback
 from collections import deque
 
@@ -16,6 +18,7 @@ from .signals import (
     BlinkDetector,
     ClenchDetector,
     EyesClosedDetector,
+    NodShakeDetector,
     PostureTracker,
     band_powers,
     band_rms,
@@ -25,6 +28,7 @@ from .signals import (
 )
 
 TICK_S = 0.25
+HEAD_AXES = Path("data/head_axes.json")  # {"nod": axis, "shake": axis}, measured by scripts/check_nod.py
 CALIBRATE_S = 20
 NOISY_REST_FRAC = 0.05  # more of the still 20 s than this over the bite line = noisy contact or a tense jaw
 SAMPLE_EVERY_S = 5  # one samples row per this many seconds of live data
@@ -80,6 +84,8 @@ class Coach:
         self.on_gesture = on_gesture  # board input: (kind, ago_s)
         self.on_presence = on_presence  # board: the headband came off or went quiet (reason)
         self.off_since, self.lost_told, self.presence_at = None, False, 0.0
+        axes = json.loads(HEAD_AXES.read_text()) if HEAD_AXES.exists() else {}
+        self.head = NodShakeDetector(axes.get("nod", 1), axes.get("shake", 2))
         self.nudge, self.app_name, self.clock, self.sleep = nudge, app_name, clock, sleep
         self.want_calibration = True
         self.running = True
@@ -263,6 +269,10 @@ class Coach:
             self.live_since = self.last_sample = now
         self.state["live"] = True
         self.eeg_tail.extend(eeg.T)
+        gyro = d.get("gyro")
+        if gyro is not None and gyro.shape[1] and self.on_gesture and not self.state["calibrating"]:
+            for kind in self.head.feed(gyro):
+                self.on_gesture(kind, 0.0)
         if now - self.presence_at >= 1.0:
             self.presence_at = now
             ok = contact(np.array(self.eeg_tail).T)

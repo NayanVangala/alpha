@@ -315,7 +315,24 @@ class Board:
         with self.lock:
             self.tick()
             self.counts["keys" if by == "keys" else "wearer"] += 1
-            who = by if by in ("keys", "camera") else "brain" if kind == "eyes_closed" else "muscle"
+            who = by if by in ("keys", "camera") else "head" if kind in ("nod", "shake") else "brain" if kind == "eyes_closed" else "muscle"
+            if kind in ("nod", "shake"):  # a nod says yes and a shake says no, on Claude's questions only
+                if self.screen != "agent" or self.overlay:
+                    return
+                q = self.question
+                if kind == "nod":
+                    if q["kind"] == "permission" and not q["auto"]:
+                        self._out("notice", "A nod can't approve a risky step: bite down.")
+                        return
+                    kind = "clench"  # the lit guess, as a bite would take it
+                elif q["kind"] == "next":
+                    kind = "eyes_closed"  # not that one: the next guess (this path never brakes)
+                else:
+                    self._note(q["detail"], "no", who)
+                    self._out("notice", f"Shook no: {q['detail'][:60]}")
+                    self.declined = True
+                    self._answer("Deny")
+                    return
             if kind != "clench":
                 self.auto_at = None  # the wearer is steering this one by hand
             if kind == "long_clench":

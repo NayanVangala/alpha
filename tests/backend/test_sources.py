@@ -61,3 +61,12 @@ def test_samples_keep_the_headbands_timing_through_wraparound_lost_packets_and_b
     truth = np.concatenate([100.0 + (u - 65530) * 12 / 256 + np.arange(12) / 256 for u in sent])
     assert len(t) == len(truth)
     assert np.all(np.abs(t - truth - 0.02) < 0.03)  # the lag Bluetooth always adds, give or take its jitter
+
+
+def test_gyro_packets_decode_to_degrees_per_second():
+    from src.backend.sources import decode_gyro
+
+    raw = bytes([0, 1]) + b"".join(int(v).to_bytes(2, "big", signed=True) for v in (100, 0, -100, 0, 200, 0, 0, 0, 50)) + bytes(2)
+    g = decode_gyro(raw)
+    assert g.shape == (3, 3)  # three axes, three samples
+    assert abs(g[0, 0] - 100 * 0.0074768) < 1e-9 and abs(g[0, 1] + 0 ) < 1e-9

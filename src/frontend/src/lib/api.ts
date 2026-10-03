@@ -18,7 +18,7 @@ export type Headband = {
   battery: number | null
 }
 /** One agent decision: what, yes / no / stop, and what decided it (the keyboard stand-in counts as keys). */
-export type Decision = { what: string; verdict: "yes" | "no" | "stop"; by: "brain" | "muscle" | "silence" | "keys" | "camera" | "presence" }
+export type Decision = { what: string; verdict: "yes" | "no" | "stop"; by: "brain" | "muscle" | "silence" | "keys" | "camera" | "presence" | "head" }
 export type BoardState = {
   screen: "menu" | "options" | "replies" | "confirm" | "agent"
   overlay: "back" | "help" | null

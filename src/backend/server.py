@@ -247,7 +247,7 @@ def board_state():
 
 
 class InputRequest(BaseModel):
-    kind: Literal["clench", "long_clench", "double_blink", "glance_left", "glance_right", "eyes_closed"]
+    kind: Literal["clench", "long_clench", "double_blink", "glance_left", "glance_right", "eyes_closed", "nod", "shake"]
     ago: float = Field(0.0, ge=0, le=5)  # seconds since the clench began
     by: Literal["keys", "camera"] = "keys"  # "camera": the webcam saw the eyes close, a brake independent of the headband
 

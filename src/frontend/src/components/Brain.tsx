@@ -46,7 +46,7 @@ function Trace({ name, what, trail, brain }: { name: string; what: string; trail
   )
 }
 
-const BY: Record<Decision["by"], string> = { brain: "brain", muscle: "muscle", silence: "silence", keys: "keyboard", camera: "camera", presence: "headband off" }
+const BY: Record<Decision["by"], string> = { brain: "brain", muscle: "muscle", silence: "silence", keys: "keyboard", camera: "camera", presence: "headband off", head: "head" }
 
 /**
  * What decided each of Claude's steps, live: the wearer's alpha waves (brain) and jaw (muscle) against their

@@ -560,3 +560,17 @@ def test_taking_the_headband_off_brakes_a_working_agent_and_denies_what_waits(b)
     b.presence_lost("Headband taken off")
     assert b.braked() and b.state()["notice"]["text"].startswith("Headband taken off")  # Claude had just checked the brake
     assert b.state()["ledger"][-1]["by"] == "presence"
+
+
+def test_a_nod_says_yes_and_a_shake_says_no_but_a_nod_never_approves_risk(b):
+    b.ask(1, "permission", "Claude wants to run", "pytest", ["Allow", "Deny"], True)
+    b.handle("nod")
+    assert b.answer_of(1) == (True, "Allow") and b.state()["ledger"][-1]["by"] == "head"
+    b.ask(2, "permission", "Claude wants to run", "rm -rf build", ["Deny", "Allow"], False)
+    b.handle("nod")
+    assert b.answer_of(2) == (False, None) and b.state()["notice"]["text"].startswith("A nod can't approve")
+    b.handle("shake")
+    assert b.answer_of(2) == (True, "Deny") and not b.braked()  # a shake is a no, not a stop
+    b.ask(3, "next", "Claude finished", "Done.", ["Run the tests", "Commit this", "I'm done"], True)
+    b.handle("shake")
+    assert b.answer_of(3) == (False, None)  # not that one: the next guess lights, the question stays

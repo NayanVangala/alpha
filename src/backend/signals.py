@@ -401,3 +401,52 @@ def band_powers(freqs, psd):
     """{band: power in uV^2 per channel}, the PSD summed over each band."""
     df = freqs[1] - freqs[0]
     return {name: psd[..., (freqs >= lo) & (freqs < hi)].sum(axis=-1) * df for name, lo, hi in BANDS}
+
+
+class NodShakeDetector:
+    """Head nods (yes) and shakes (no) from the Muse's gyroscope.
+
+    A nod swings the head about one axis and a shake about another. Each needs two clear swings past MIN_RATE
+    within WIN_S, mostly on its own axis, so reading, turning to look, or a bite's jolt fire nothing. The axes are
+    the Muse's pitch and yaw rates by default (guessed); scripts/check_nod.py measures them from a few real nods
+    and shakes and saves them to data/head_axes.json.
+    """
+
+    MIN_RATE = 40.0  # deg/s a swing must reach
+    WIN_S = 1.6
+    REFRACTORY_S = 1.5
+    DOMINANCE = 2.0  # the watched axis must carry this much more motion than the other one
+
+    def __init__(self, nod_axis=1, shake_axis=2, fs=IMU_FS):
+        self.axes = {"nod": nod_axis, "shake": shake_axis}
+        self.fs = fs
+        self.buf = np.empty((3, 0))
+        self.quiet_until = 0.0
+        self.n_seen = 0
+
+    @staticmethod
+    def _swings(x, floor):
+        """Number of runs of one sign that reach `floor`: a nod down and back up is two."""
+        sign = np.sign(x)
+        runs = np.flatnonzero(np.diff(sign) != 0) + 1
+        return sum(1 for seg in np.split(x, runs) if len(seg) and np.max(np.abs(seg)) >= floor)
+
+    def feed(self, gyro):
+        """gyro: (3, n) deg/s. Returns ['nod'] or ['shake'] once per head movement."""
+        g = finite(np.asarray(gyro, float))
+        if g.ndim != 2 or g.shape[0] != 3 or g.shape[1] == 0:
+            return []
+        self.n_seen += g.shape[1]
+        self.buf = np.hstack([self.buf, g])[:, -int(self.WIN_S * self.fs):]
+        if self.n_seen / self.fs < self.quiet_until or self.buf.shape[1] < self.fs // 2:
+            return []
+        k = max(1, self.fs // 10)
+        x = np.apply_along_axis(lambda v: np.convolve(v, np.ones(k) / k, "same"), 1, self.buf)  # ~0.1 s smoothing
+        rms = np.sqrt(np.mean(np.square(x), axis=1))
+        for kind, other in (("nod", "shake"), ("shake", "nod")):
+            a, b = self.axes[kind], self.axes[other]
+            if rms[a] >= self.DOMINANCE * rms[b] and self._swings(x[a], self.MIN_RATE) >= 2:
+                self.quiet_until = self.n_seen / self.fs + self.REFRACTORY_S
+                self.buf = np.empty((3, 0))
+                return [kind]
+        return []

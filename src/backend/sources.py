@@ -19,6 +19,7 @@ from .signals import EEG_FS, IMU_FS, PPG_FS
 
 MUSE_UUID = "273e00{:02x}-4c4d-454d-96be-f03bac821358"  # the Muse's characteristics: 0x01 control, 0x03-0x06 EEG...
 EEG_CHARS = (0x03, 0x04, 0x05, 0x06)  # TP9, AF7, AF8, TP10
+GYRO_CHAR = 0x09  # head rotation rates: what nods and shakes are read from
 ACCEL_CHAR = 0x0A
 PPG_CHARS = (0x0F, 0x10, 0x11)
 TELEMETRY_CHAR = 0x0B  # battery and temperature, every few seconds
@@ -66,6 +67,11 @@ def decode_accel(data):
     return np.frombuffer(bytes(data[2:20]), ">i2").reshape(3, 3).T * 0.0000610352
 
 
+def decode_gyro(data):
+    """Three gyroscope samples, x y z each, in degrees per second: returns (3 axes, 3 samples)."""
+    return np.frombuffer(bytes(data[2:20]), ">i2").reshape(3, 3).T * 0.0074768
+
+
 def decode_ppg(data):
     """Six 24-bit optical (heart-rate) samples."""
     b = np.frombuffer(bytes(data[2:20]), np.uint8).astype(np.int64).reshape(6, 3)
@@ -91,7 +97,7 @@ class MuseSource:
         self._clear()
 
     def _clear(self):
-        self.blocks, self.eeg, self.eeg_t, self.accel, self.ppg = {}, [], [], [], [[], [], []]
+        self.blocks, self.eeg, self.eeg_t, self.accel, self.gyro, self.ppg = {}, [], [], [], [], [[], [], []]
         self.seq_hi = None  # highest packet number so far, unwrapped past 65535
         self.offsets = deque(maxlen=640)  # ~30 s of (arrival - sample clock): the smallest is the true offset
 
@@ -120,6 +126,7 @@ class MuseSource:
                 for i, n in enumerate(EEG_CHARS):
                     await c.start_notify(MUSE_UUID.format(n), partial(self._on_eeg, i))
                 await c.start_notify(MUSE_UUID.format(ACCEL_CHAR), self._on_accel)
+                await c.start_notify(MUSE_UUID.format(GYRO_CHAR), self._on_gyro)
                 for i, n in enumerate(PPG_CHARS):
                     await c.start_notify(MUSE_UUID.format(n), partial(self._on_ppg, i))
                 await c.start_notify(MUSE_UUID.format(TELEMETRY_CHAR), self._on_telemetry)
@@ -178,6 +185,10 @@ class MuseSource:
         with self.lock:
             self.accel.append(decode_accel(data))
 
+    def _on_gyro(self, _, data):
+        with self.lock:
+            self.gyro.append(decode_gyro(data))
+
     def _on_telemetry(self, _, data):
         self.battery = int.from_bytes(bytes(data[2:4]), "big") / 512  # percent, as muse-js reads it
 
@@ -187,14 +198,15 @@ class MuseSource:
 
     def read(self):
         with self.lock:
-            eeg, eeg_t, accel, ppg = self.eeg, self.eeg_t, self.accel, self.ppg
-            self.eeg, self.eeg_t, self.accel, self.ppg = [], [], [], [[], [], []]
+            eeg, eeg_t, accel, gyro, ppg = self.eeg, self.eeg_t, self.accel, self.gyro, self.ppg
+            self.eeg, self.eeg_t, self.accel, self.gyro, self.ppg = [], [], [], [], [[], [], []]
         ppg = [np.concatenate(p) if p else np.empty(0) for p in ppg]
         n = min(len(p) for p in ppg)
         return {
             "eeg": np.hstack(eeg) if eeg else np.empty((4, 0)),
             "eeg_t": np.concatenate(eeg_t) if eeg_t else np.empty(0),
             "accel": np.hstack(accel) if accel else np.empty((3, 0)),
+            "gyro": np.hstack(gyro) if gyro else np.empty((3, 0)),
             "ppg": np.vstack([p[:n] for p in ppg]) if n else np.empty((3, 0)),
         }
 
@@ -223,6 +235,7 @@ class SimSource:
         self.pending_blink = np.zeros(0)
         self.drift_zi = np.zeros((4, 1))
         self.eyes_closed = False
+        self.head = None  # (gyro axis, until) while a nod or shake is being swung
 
     def start(self):
         self.t0 = self.last = time.monotonic()
@@ -270,4 +283,8 @@ class SimSource:
         tp = (elapsed - dt) + np.arange(m) / PPG_FS
         ppg = self.rng.normal(0, 0.2, (3, m))
         ppg[1] += np.sin(2 * np.pi * 70 / 60 * tp)
-        return {"eeg": eeg, "eeg_t": now - dt + np.arange(n) / EEG_FS, "accel": accel, "ppg": ppg}
+        gyro = self.rng.normal(0, 2, (3, k))
+        if self.head and elapsed < self.head[1]:  # a nod or shake swing, 2 Hz, on the watched axis
+            ts = (elapsed - dt) + np.arange(k) / IMU_FS
+            gyro[self.head[0]] += 90 * np.sin(2 * np.pi * 2 * ts)
+        return {"eeg": eeg, "eeg_t": now - dt + np.arange(n) / EEG_FS, "accel": accel, "gyro": gyro, "ppg": ppg}

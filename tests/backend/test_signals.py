@@ -218,3 +218,23 @@ def test_clench_level_is_the_live_fraction_of_the_threshold():
     det.feed(fake_eeg(rng, 2, clenches=[(0.2, 1.5)]))
     stream(det.feed, fake_eeg(rng, 1, clenches=[(0, 1)]))
     assert det.level > 1.0  # biting: over it
+
+
+def _swing(axis, amp=90.0, hz=2.0, seconds=1.0, fs=52):
+    g = np.random.default_rng(0).normal(0, 2, (3, int(seconds * fs)))
+    g[axis] += amp * np.sin(2 * np.pi * hz * np.arange(g.shape[1]) / fs)
+    return g
+
+
+def test_a_nod_and_a_shake_are_told_apart_and_ordinary_motion_fires_nothing():
+    from src.backend.signals import NodShakeDetector
+
+    d = NodShakeDetector(nod_axis=1, shake_axis=2)
+    assert d.feed(_swing(1)) == ["nod"]
+    assert NodShakeDetector(1, 2).feed(_swing(2)) == ["shake"]
+    assert NodShakeDetector(1, 2).feed(_swing(0)) == []  # tilting the head to a shoulder is neither
+    both = _swing(1) + _swing(2)  # a diagonal swing is ambiguous: no answer
+    assert NodShakeDetector(1, 2).feed(both) == []
+    assert NodShakeDetector(1, 2).feed(_swing(1, amp=15)) == []  # too gentle: drift, or a bite's jolt
+    assert NodShakeDetector(1, 2).feed(_swing(1, seconds=0.25, hz=1.0)) == []  # one swing, not there-and-back
+    assert d.feed(_swing(1)) == []  # refractory: one answer per movement
