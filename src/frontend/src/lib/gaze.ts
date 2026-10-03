@@ -8,7 +8,7 @@ export type GazeSource = {
 }
 
 const SAVED = "alpha.gaze.cal"
-const SMOOTH = 0.3 // how far each reading pulls the dot: lower is steadier, higher is quicker
+const SMOOTH = 0.2 // how far each reading pulls the dot: lower is steadier, higher is quicker
 const SUCCESS = 0 // the SDK's TrackingState.SUCCESS
 
 function mouseSource(onGaze: (g: Gaze) => void): GazeSource {
