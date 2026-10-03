@@ -1,6 +1,6 @@
 // Eye tracking through the Eyedid (SeeSo) web SDK and the webcam. Falls back to the mouse when there is no key,
 // so the screens work, labeled, without it. Gaze only ever points; it never approves anything.
-export type Gaze = { x: number; y: number; ok: boolean }
+export type Gaze = { x: number; y: number; ok: boolean; open: number | null } // open: both eyes, 0 shut to ~1 wide
 export type GazeSource = {
   mode: "eyedid" | "mouse"
   calibrate: (onPoint: (x: number, y: number, progress: number) => void) => Promise<void>
@@ -10,14 +10,15 @@ export type GazeSource = {
 const SAVED = "alpha.gaze.cal"
 const SMOOTH = 0.2 // how far each reading pulls the dot: lower is steadier, higher is quicker
 const SUCCESS = 0 // the SDK's TrackingState.SUCCESS
+const CLOSED_S = 0.8 // eyes shut this long is a deliberate closure, not a blink
 
 function mouseSource(onGaze: (g: Gaze) => void): GazeSource {
-  const move = (e: MouseEvent) => onGaze({ x: e.clientX, y: e.clientY, ok: true })
+  const move = (e: MouseEvent) => onGaze({ x: e.clientX, y: e.clientY, ok: true, open: null })
   addEventListener("mousemove", move)
   return { mode: "mouse", calibrate: async () => {}, stop: () => removeEventListener("mousemove", move) }
 }
 
-export async function startGaze(onGaze: (g: Gaze) => void, opts: { mouse?: boolean } = {}): Promise<GazeSource> {
+export async function startGaze(onGaze: (g: Gaze) => void, opts: { mouse?: boolean; onEyesClosed?: () => void } = {}): Promise<GazeSource> {
   const key = opts.mouse ? null : (await fetch("/api/gaze/config").then((r) => r.json())).key
   if (!key) return mouseSource(onGaze)
 
@@ -28,12 +29,24 @@ export async function startGaze(onGaze: (g: Gaze) => void, opts: { mouse?: boole
   if (saved) await sdk.setCalibrationData(saved)
 
   let sx = innerWidth / 2, sy = innerHeight / 2
+  // The camera brake: both eyes well under their own wide-open level for CLOSED_S (a blink is far shorter).
+  let wide = 0, shutSince = 0, told = false
+  const watchEyes = (open: number, now: number) => {
+    wide = Math.max(wide * 0.9995, open) // the wearer's own wide-open level, slowly forgetting
+    if (open > wide * 0.6) { shutSince = 0; told = false }
+    else if (open < wide * 0.4) {
+      shutSince ||= now
+      if (!told && now - shutSince >= CLOSED_S * 1000) { told = true; opts.onEyesClosed?.() }
+    }
+  }
   const started = await sdk.startTracking(
-    (g: { x: number; y: number; trackingState: number }) => {
-      if (g.trackingState !== SUCCESS) return onGaze({ x: sx, y: sy, ok: false })
+    (g: { x: number; y: number; trackingState: number; leftOpenness: number; rightOpenness: number }) => {
+      const open = Number.isFinite(g.leftOpenness) && Number.isFinite(g.rightOpenness) ? (g.leftOpenness + g.rightOpenness) / 2 : null
+      if (open !== null) watchEyes(open, performance.now())
+      if (g.trackingState !== SUCCESS) return onGaze({ x: sx, y: sy, ok: false, open })
       sx += (g.x - sx) * SMOOTH
       sy += (g.y - sy) * SMOOTH
-      onGaze({ x: sx, y: sy, ok: true })
+      onGaze({ x: sx, y: sy, ok: true, open })
     },
     () => {},
   )

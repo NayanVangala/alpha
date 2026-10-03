@@ -249,6 +249,7 @@ def board_state():
 class InputRequest(BaseModel):
     kind: Literal["clench", "long_clench", "double_blink", "glance_left", "glance_right", "eyes_closed"]
     ago: float = Field(0.0, ge=0, le=5)  # seconds since the clench began
+    by: Literal["keys", "camera"] = "keys"  # "camera": the webcam saw the eyes close, a brake independent of the headband
 
 
 @app.post("/api/input")
@@ -259,7 +260,9 @@ def board_input(req: InputRequest):
     """
     if session.phase != "connected":
         raise HTTPException(409, "Connect a headband first.")
-    board.handle(req.kind, req.ago, by="keys")
+    if req.by == "camera" and req.kind != "eyes_closed":
+        raise HTTPException(422, "The camera only sees eyes close.")
+    board.handle(req.kind, req.ago, by=req.by)
     return {**board.state(), "headband": headband()}
 
 

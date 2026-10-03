@@ -11,23 +11,35 @@ const targets = ["Home", "Back", "Search", "Videos", "Read", "Stop"].map((name) 
 })
 
 let on: HTMLElement | null = null
-const onGaze = ({ x, y, ok }: Gaze) => {
+let openNow: number | null = null
+const onGaze = ({ x, y, ok, open }: Gaze) => {
+  openNow = open
   dot.style.transform = `translate(${x}px, ${y}px)`
   dot.classList.toggle("lost", !ok)
   const under = ok ? targets.find((t) => { const r = t.getBoundingClientRect(); return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom }) ?? null : null
   if (under !== on) { on?.classList.remove("on"); under?.classList.add("on"); on = under }
 }
 
+let fired = 0
+function onEyesClosed() {
+  fired++
+  // the same brake the headband's alpha applies; the board refuses it (409) until a headband is connected
+  fetch("/api/input", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "eyes_closed", by: "camera" }) })
+    .then((r) => (picked.textContent = `Camera brake fired ×${fired} (board said ${r.status}).`))
+    .catch(() => (picked.textContent = `Camera brake fired ×${fired}.`))
+}
+setInterval(() => { if (source?.mode === "eyedid") status.textContent = `Eye tracking on · eye openness ${openNow === null ? "?" : openNow.toFixed(2)} · close your eyes for a second to test the camera brake` }, 250)
+
 let source: GazeSource | null = null
 async function begin(mouse: boolean) {
   source?.stop()
   status.textContent = "Starting…"
   try {
-    source = await startGaze(onGaze, { mouse })
+    source = await startGaze(onGaze, { mouse, onEyesClosed })
     status.textContent = source.mode === "eyedid" ? "Eye tracking on. Calibrate once, then look at a target." : "Mouse stand-in (no eye tracking): the dot follows your mouse."
   } catch (e) {
     status.textContent = `${(e as Error).message} Using the mouse stand-in.`
-    source = await startGaze(onGaze, { mouse: true })
+    source = await startGaze(onGaze, { mouse: true, onEyesClosed })
   }
 }
 

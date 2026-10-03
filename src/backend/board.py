@@ -315,7 +315,7 @@ class Board:
         with self.lock:
             self.tick()
             self.counts["keys" if by == "keys" else "wearer"] += 1
-            who = "keys" if by == "keys" else "brain" if kind == "eyes_closed" else "muscle"
+            who = by if by in ("keys", "camera") else "brain" if kind == "eyes_closed" else "muscle"
             if kind != "clench":
                 self.auto_at = None  # the wearer is steering this one by hand
             if kind == "long_clench":

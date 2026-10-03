@@ -229,3 +229,12 @@ def test_gaze_config_and_cross_origin_isolation(connected, monkeypatch):
     assert r.json() == {"key": "dev_test"}
     assert r.headers["Cross-Origin-Opener-Policy"] == "same-origin"  # SharedArrayBuffer needs both headers
     assert r.headers["Cross-Origin-Embedder-Policy"] == "credentialless"
+
+
+def test_the_camera_can_brake_but_only_by_seeing_eyes_close(connected):
+    client = connected
+    assert client.post("/api/input", json={"kind": "clench", "by": "camera"}).status_code == 422
+    client.post("/api/agent/arm")
+    client.post("/api/hooks", json={"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "pytest"}})
+    assert client.post("/api/input", json={"kind": "eyes_closed", "by": "camera"}).status_code == 200
+    assert server.board.state()["ledger"][-1]["by"] == "camera"  # labeled as the camera, never as BRAIN
