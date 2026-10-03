@@ -80,9 +80,12 @@ def contact_tiles(name):
     ]
 
 
-def load_menu(path=MENU, contacts=()):
-    """Menu tree from JSON, with People filled from contacts. A bad file fails at startup, not mid-demo."""
+def load_menu(path=MENU, contacts=(), routines=()):
+    """Menu tree from JSON, with People filled from contacts and a Routines tile of saved missions. A bad file fails at startup."""
     menu = json.loads(Path(path).read_text())
+    if routines:  # one bite on a routine, one on its confirm, and Claude starts on the mission
+        menu["children"].append({"label": "Routines", "children": [
+            {"label": r["name"], "phrase": f"Start: {r['name']}.", "action": "routine", "to": r["name"]} for r in routines]})
 
     def check(node, where):
         if node.pop("from_contacts", False):
@@ -214,7 +217,7 @@ class Board:
             self.said_log.append(sentence)
             self.dialog.append(("me", sentence))
         else:
-            self._out("notice", f"{'Texting' if action == 'text' else 'Calling'} {leaf['to']}…")
+            self._out("notice", f"Starting {leaf['to']}…" if action == "routine" else f"{'Texting' if action == 'text' else 'Calling'} {leaf['to']}…")
             self.act(action, sentence, leaf["to"])
         self.took = {"id": self.n_out, "n": self.clenches, "glances": self.glances}
         self.remember(sentence, action, leaf.get("to"))

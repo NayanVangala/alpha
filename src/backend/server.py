@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from . import actions
+from . import actions, routines
 from . import claude_code as cc
 from .board import MAX_TILES, SCAN_S, Board, load_menu
 from .coach import DEMO_TIMING, SAMPLE_EVERY_S, TIMING, Coach, open_db
@@ -50,10 +50,16 @@ async def isolate(request: Request, call_next):
     response.headers["Cross-Origin-Embedder-Policy"] = "credentialless"
     return response
 contacts = actions.load_contacts()
+saved_routines = routines.load_routines()
 
 
 def act(kind, text, to):
     """The board confirmed a text, a call or help: run it off the request thread, then report back."""
+    if kind == "routine":
+        r = next((r for r in saved_routines if r["name"] == to), None)
+        threading.Thread(target=lambda: board.notify(routines.start(r) if r else f"No routine called {to}."), daemon=True).start()
+        return
+
     def run():
         c = actions.help_contact(contacts) if kind == "help" else next(c for c in contacts if c["name"] == to)
         steps = [actions.send_text, actions.place_call] if kind == "help" else \
@@ -92,7 +98,7 @@ def suggest_replies(heard, dialog, token):
 
 history = open_history()
 # outside the session, so the keyboard works with no headband
-board = Board(load_menu(contacts=contacts), act=act, suggest=suggest,
+board = Board(load_menu(contacts=contacts, routines=routines.ranked(saved_routines, history)), act=act, suggest=suggest,
               remember=lambda sentence, action, to: record(history, sentence, action, to),
               recall=lambda: suggestions(history), reply=suggest_replies)
 

@@ -38,7 +38,7 @@ def suggestions(db, now=None, top=TOP):
         scores[sentence, action, to] = scores.get((sentence, action, to), 0.0) + weight
     ranked = sorted(scores, key=scores.get, reverse=True)[:top]
     return [
-        {"label": s if a == "speak" else f"{'Text' if a == 'text' else 'Call'} {to}: {s}",
+        {"label": s if a == "speak" else to if a == "routine" else f"{'Text' if a == 'text' else 'Call'} {to}: {s}",
          "phrase": s, "exact": True, **({} if a == "speak" else {"action": a, "to": to})}
         for s, a, to in ranked
     ]
