@@ -1,0 +1,179 @@
+{
+  "label": "Home",
+  "children": [
+    {
+      "label": "I need",
+      "children": [
+        {
+          "label": "Water",
+          "phrase": "Could I have some water, please?"
+        },
+        {
+          "label": "Bathroom",
+          "phrase": "I need to use the bathroom."
+        },
+        {
+          "label": "Pain",
+          "children": [
+            {
+              "label": "Head",
+              "children": [
+                {
+                  "label": "A little",
+                  "phrase": "My head hurts a little."
+                },
+                {
+                  "label": "A lot",
+                  "phrase": "My head hurts a lot."
+                }
+              ]
+            },
+            {
+              "label": "Back",
+              "children": [
+                {
+                  "label": "A little",
+                  "phrase": "My back hurts a little."
+                },
+                {
+                  "label": "A lot",
+                  "phrase": "My back hurts a lot."
+                }
+              ]
+            },
+            {
+              "label": "Chest",
+              "children": [
+                {
+                  "label": "A little",
+                  "phrase": "My chest hurts a little."
+                },
+                {
+                  "label": "A lot",
+                  "phrase": "My chest hurts a lot."
+                }
+              ]
+            },
+            {
+              "label": "Stomach",
+              "children": [
+                {
+                  "label": "A little",
+                  "phrase": "My stomach hurts a little."
+                },
+                {
+                  "label": "A lot",
+                  "phrase": "My stomach hurts a lot."
+                }
+              ]
+            },
+            {
+              "label": "Legs",
+              "children": [
+                {
+                  "label": "A little",
+                  "phrase": "My legs hurt a little."
+                },
+                {
+                  "label": "A lot",
+                  "phrase": "My legs hurt a lot."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "label": "Move me",
+          "phrase": "Please help me change position."
+        },
+        {
+          "label": "Suction",
+          "phrase": "I need suction, please."
+        }
+      ]
+    },
+    {
+      "label": "Answer",
+      "children": [
+        {
+          "label": "Yes",
+          "phrase": "Yes."
+        },
+        {
+          "label": "No",
+          "phrase": "No."
+        },
+        {
+          "label": "Maybe",
+          "phrase": "Maybe."
+        },
+        {
+          "label": "I don't know",
+          "phrase": "I don't know."
+        },
+        {
+          "label": "Thank you",
+          "phrase": "Thank you."
+        },
+        {
+          "label": "I love you",
+          "phrase": "I love you."
+        }
+      ]
+    },
+    {
+      "label": "People",
+      "from_contacts": true
+    },
+    {
+      "label": "I feel",
+      "children": [
+        {
+          "label": "Too hot",
+          "phrase": "I'm too hot."
+        },
+        {
+          "label": "Too cold",
+          "phrase": "I'm too cold."
+        },
+        {
+          "label": "Tired",
+          "phrase": "I'm tired and want to rest."
+        },
+        {
+          "label": "Scared",
+          "phrase": "I'm scared. Please stay with me."
+        },
+        {
+          "label": "Happy",
+          "phrase": "I'm happy."
+        }
+      ]
+    },
+    {
+      "label": "Comfort",
+      "children": [
+        {
+          "label": "Lights",
+          "phrase": "Could you change the lights, please?"
+        },
+        {
+          "label": "TV",
+          "phrase": "Could you turn on the TV?"
+        },
+        {
+          "label": "Music",
+          "phrase": "Please play some music."
+        },
+        {
+          "label": "Blanket",
+          "phrase": "Could I have a blanket?"
+        },
+        {
+          "label": "Window",
+          "phrase": "Could you open the window?"
+        }
+      ]
+    }
+  ]
+}
