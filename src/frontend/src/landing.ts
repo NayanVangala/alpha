@@ -316,8 +316,8 @@ function build() {
   {
     const t = 3.55
     tl.to(dissolve, { p: 1, duration: 0.45, ease: "none", onUpdate: drawCells }, t)
-    tl.set(slides[3], { autoAlpha: 0 }, t + 0.46).set(slides[4], { autoAlpha: 1 }, t + 0.46)
-    tl.to(dissolve, { p: 0, duration: 0.45, ease: "none", onUpdate: drawCells }, t + 0.46) // clear starts at the swap: no parkable solid-blue frame
+    tl.set(slides[3], { autoAlpha: 0 }, t + 0.45).set(slides[4], { autoAlpha: 1 }, t + 0.45)
+    tl.to(dissolve, { p: 0, duration: 0.45, ease: "none", onUpdate: drawCells }, t + 0.45) // clear starts at the swap: no parkable solid-blue frame
   }
 
   // 4 -> 5: zoom into the blue box (rein, on your computer) until blue is the whole screen: the impact slide
