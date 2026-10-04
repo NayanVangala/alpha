@@ -61,11 +61,16 @@ def test_start_opens_terminal_on_a_mac_and_just_says_the_command_elsewhere(tmp_p
     assert routines.start(hook).startswith("Would start n8n")  # demo mode: nothing is sent
 
 
-def test_the_three_pillars_ship_as_default_routines(tmp_path):
+def test_the_new_routines_ship_as_defaults_and_user_routines_come_first(tmp_path):
     rs = routines.load_routines(tmp_path / "none.json", env={})
     names = [r["name"] for r in rs]
-    for name in ("Find lunch", "Morning briefing", "Room remote"):
+    for name in ("Morning briefing", "Set volume"):
         assert name in names
         r = next(x for x in rs if x["name"] == name)
         assert r["kind"] == "claude" and r["mission"] and r["dir"]  # schema: load would have raised
+    assert "Find lunch" not in names  # cut: hallucination risk on the open web
     assert len(names) <= routines.MAX
+    mine = tmp_path / "mine.json"
+    mine.write_text(json.dumps([{"name": "Mine", "kind": "claude", "dir": "demo/web", "mission": "Do it."}]))
+    rs = routines.load_routines(mine, env={})
+    assert rs[0]["name"] == "Mine"  # the user's own is never the one cut at MAX

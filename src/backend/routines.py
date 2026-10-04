@@ -23,25 +23,24 @@ DEFAULTS = [
      "mission": "Run the tests in this project. If any fail, find the cause and fix it, then run them again."},
     {"name": "Research alpha waves", "kind": "claude", "dir": "demo/web",
      "mission": "Open en.wikipedia.org and read the page on alpha waves, then write a five-line summary into notes.md."},
-    {"name": "Find lunch", "kind": "claude", "dir": "demo/web",
-     "mission": "Using the browser, find a highly-rated wheelchair-accessible restaurant near San Ramon, California. Write its name, address, rating, and one sentence on why it is a good pick into lunch.md in this directory. Then stop."},
     {"name": "Morning briefing", "kind": "claude", "dir": "demo/web",
-     "mission": "It is morning. Get today's date. Open https://api.open-meteo.com/v1/forecast?latitude=37.78&longitude=-121.98&current=temperature_2m,weathercode&daily=temperature_2m_max,temperature_2m_min&timezone=America%2FLos_Angeles&temperature_unit=fahrenheit in the browser and read the current temperature and today's high and low. Write a 30-second spoken-style morning briefing (date, weather, whether a jacket is needed) into briefing.md in this directory. Then read it aloud with: say -f briefing.md. That last step will ask the wearer for a bite, which is correct: making sound needs approval. Then stop."},
-    {"name": "Room remote", "kind": "claude", "dir": "demo/pager",
-     "mission": "You are the wearer's room remote. Set this Mac's system volume to 70 percent with: osascript -e 'set volume output volume 70'. That step will ask the wearer for a bite, which is correct: the room must not change without approval. Do nothing else, then stop."},
+     "mission": "It is morning. Get today's date. Open https://api.open-meteo.com/v1/forecast?latitude=37.78&longitude=-121.98&current=temperature_2m,weathercode&daily=temperature_2m_max,temperature_2m_min&timezone=America%2FLos_Angeles&temperature_unit=fahrenheit in the browser and read the current temperature and today's high and low. If the page fails to load, write that into briefing.md instead of guessing. Otherwise write a 30-second spoken-style morning briefing (date, weather, whether a jacket is needed) into briefing.md in this directory. Then read it aloud with: say -f briefing.md. That last step will ask the wearer for a bite, which is correct: making sound needs approval. Then stop."},
+    {"name": "Set volume", "kind": "claude", "dir": "demo/pager",
+     "mission": "Set this Mac's system volume to 70 percent with: osascript -e 'set volume output volume 70'. That step will ask the wearer for a bite, which is correct: the room must not change without approval. Do nothing else, then stop."},
     {"name": "Run my n8n workflow", "kind": "webhook", "env": "N8N_WEBHOOK_URL"},
 ]
 
 
 def load_routines(path=USER_FILE, env=None):
-    """The routines to offer: defaults plus the user's file, a webhook one only when its URL is set. Bad data fails at startup."""
+    """The routines to offer: the user's file first, then the defaults it didn't override;
+    a webhook one only when its URL is set. The user's own are never the ones cut at MAX.
+    Bad data fails at startup."""
     env = os.environ if env is None else env
-    by_name = {r["name"]: r for r in DEFAULTS}
-    if path.exists():
-        for r in json.loads(path.read_text()):
-            by_name[r["name"]] = r
+    user_rs = json.loads(path.read_text()) if path.exists() else []
+    user_names = {r["name"] for r in user_rs}
+    ordered = list(user_rs) + [r for r in DEFAULTS if r["name"] not in user_names]
     out = []
-    for r in by_name.values():
+    for r in ordered:
         if r.get("kind", "claude") == "claude" and not (r.get("mission") and r.get("dir")):
             raise ValueError(f"routine {r.get('name')!r}: a Claude routine needs a mission and a dir")
         if r.get("kind") == "webhook" and not (r.get("url") or env.get(r.get("env", ""))):

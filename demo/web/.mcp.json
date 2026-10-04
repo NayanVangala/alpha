@@ -5,7 +5,7 @@
       "args": [
         "-y", "@playwright/mcp@latest",
         "--isolated", "--browser", "chrome",
-        "--allowed-origins", "https://duckduckgo.com;https://html.duckduckgo.com;https://en.wikipedia.org;https://www.wikipedia.org;https://upload.wikimedia.org"
+        "--allowed-origins", "https://duckduckgo.com;https://html.duckduckgo.com;https://en.wikipedia.org;https://www.wikipedia.org;https://upload.wikimedia.org;https://api.open-meteo.com"
       ]
     }
   }
