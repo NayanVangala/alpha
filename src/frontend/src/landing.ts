@@ -486,7 +486,7 @@ playBtn.addEventListener("click", () => {
   const max = document.documentElement.scrollHeight - innerHeight
   if (scrollY > max - 40) lenis.scrollTo(0, { immediate: true })
   setPlaying(true)
-  lenis.scrollTo(max, { duration: 90, easing: (t) => t, onComplete: () => setPlaying(false) })
+  lenis.scrollTo(max, { duration: 120, easing: (t) => t, onComplete: () => setPlaying(false) })
 })
 if (!lenis) playBtn.hidden = true // still mode: no smooth scroll to drive
 addEventListener("wheel", stopAuto, { passive: true })
