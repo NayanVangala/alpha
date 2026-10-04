@@ -468,5 +468,32 @@ if (still) {
   addEventListener("resize", () => ScrollTrigger.refresh())
   requestAnimationFrame(loop)
 }
+/* ---------- auto-play: one button, slow scroll through the whole deck ---------- */
+const playBtn = $<HTMLButtonElement>("autoplay")
+let playing = false
+const setPlaying = (on: boolean) => {
+  playing = on
+  playBtn.querySelector("span")!.textContent = on ? "Stop" : "Auto-play"
+}
+const stopAuto = () => {
+  if (!playing) return
+  setPlaying(false)
+  if (lenis) { lenis.stop(); lenis.start() } // cancel the in-flight scrollTo
+}
+playBtn.addEventListener("click", () => {
+  if (playing) return stopAuto()
+  if (!lenis) return
+  const max = document.documentElement.scrollHeight - innerHeight
+  if (scrollY > max - 40) lenis.scrollTo(0, { immediate: true })
+  setPlaying(true)
+  lenis.scrollTo(max, { duration: 90, onComplete: () => setPlaying(false) })
+})
+if (!lenis) playBtn.hidden = true // still mode: no smooth scroll to drive
+addEventListener("wheel", stopAuto, { passive: true })
+addEventListener("touchstart", stopAuto, { passive: true })
+addEventListener("keydown", (e) => {
+  if ((e.target as HTMLElement).closest("button, a, input")) return
+  stopAuto()
+})
 showCard()
 requestAnimationFrame(demoFrame)
