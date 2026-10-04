@@ -522,15 +522,16 @@ def main():
     ap.add_argument("--sim", action="store_true", help="offer a labeled simulated headband instead of scanning Bluetooth")
     ap.add_argument("--demo", action="store_true", help="short timers, so every nudge shows within about a minute")
     ap.add_argument("--port", type=int, default=8000)
+    ap.add_argument("--host", default="127.0.0.1", help="bind address: 0.0.0.0 exposes the board on your local network")
     ap.add_argument("--scan", action="store_true", help="the highlight steps on its own, for wearers whose glances don't read")
     args = ap.parse_args()
     if args.scan:
         board.scan_s = SCAN_S
 
     session = Session(simulated=args.sim, timing=DEMO_TIMING if args.demo else TIMING)
-    print(f"rein: http://localhost:{args.port}", flush=True)
+    print(f"rein: http://{args.host}:{args.port}", flush=True)
     try:
-        uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")
+        uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
     finally:
         session.disconnect()
 
