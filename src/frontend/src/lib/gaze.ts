@@ -1,10 +1,11 @@
 import { OneEuro, claimCamera } from "@/lib/gazeKit"
 
-// Eye tracking through the Eyedid (SeeSo) web SDK and the webcam. Falls back to the mouse when there is no key,
-// so the screens work, labeled, without it. Gaze only ever points; it never approves anything.
+// Eye tracking through the Eyedid (SeeSo) web SDK or WebGazer (keyless, in-browser) and the webcam.
+// Falls back to the mouse when no tracker starts, so the screens work, labeled, without one.
+// Gaze only ever points; it never approves anything.
 export type Gaze = { x: number; y: number; ok: boolean; open: number | null } // open: both eyes, 0 shut to ~1 wide
 export type GazeSource = {
-  mode: "eyedid" | "mouse"
+  mode: "eyedid" | "webgazer" | "mouse"
   calibrate: (onPoint: (x: number, y: number, progress: number) => void) => Promise<void>
   stop: () => void
 }
@@ -21,9 +22,79 @@ function mouseSource(onGaze: (g: Gaze) => void): GazeSource {
 }
 
 export async function startGaze(onGaze: (g: Gaze) => void, opts: { mouse?: boolean; onEyesClosed?: () => void } = {}): Promise<GazeSource> {
-  const key = opts.mouse ? null : (await fetch("/api/gaze/config").then((r) => r.json())).key
-  if (!key) return mouseSource(onGaze)
+  // The ladder: Eyedid (needs its license key) > WebGazer (keyless, in-browser) > mouse.
+  // A refused Eyedid license falls through to WebGazer instead of failing: that's the whole point.
+  if (!opts.mouse) {
+    const key = (await fetch("/api/gaze/config").then((r) => r.json())).key
+    if (key) {
+      try {
+        return await eyedidSource(onGaze, opts, key)
+      } catch {
+        // license refused or the webcam failed: try the keyless tracker
+      }
+    }
+  }
+  try {
+    return await webgazerSource(onGaze)
+  } catch {
+    return mouseSource(onGaze)
+  }
+}
 
+async function webgazerSource(onGaze: (g: Gaze) => void): Promise<GazeSource> {
+  // WebGazer: keyless eye tracking that runs entirely in the browser. Gaze position only —
+  // it reports no eye-openness signal, so the camera brake (eye closure) stays Eyedid-only.
+  const release = await claimCamera()  // one camera owner: gaze and the camera brake never fight over the webcam
+  const webgazer = (await import("webgazer")).default
+  let sx = innerWidth / 2, sy = innerHeight / 2, lastGood = 0
+  const fx = new OneEuro(), fy = new OneEuro()  // same smoothing as the Eyedid path
+  try {
+    webgazer
+      .setRegression("ridge")
+      .setTracker("clmtrackr")
+      .setGazeListener((data) => {
+        if (!data) return
+        const now = performance.now()
+        if (lastGood && now - lastGood > STALE_MS) { fx.filter(data.x / innerWidth, now / 1000 - 1); fy.filter(data.y / innerHeight, now / 1000 - 1) }
+        lastGood = now
+        sx = fx.filter(data.x / innerWidth, now / 1000) * innerWidth
+        sy = fy.filter(data.y / innerHeight, now / 1000) * innerHeight
+        onGaze({ x: sx, y: sy, ok: true, open: null })
+      })
+    webgazer.showVideoPreview(false).showPredictionPoints(false).showFaceOverlay(false).showFaceFeedbackBox(false)
+    await webgazer.begin()
+  } catch {
+    release()
+    throw new Error("The webcam didn't start.")
+  }
+  return {
+    mode: "webgazer",
+    stop: () => { webgazer.end(); webgazer.clearData(); release() },
+    // five points: the caller draws the dot via onPoint; the user gets a beat to look, then the
+    // current gaze is recorded at the point several times. WebGazer keeps its model in memory —
+    // nothing is saved to localStorage, so this calibration lasts for the page load only.
+    calibrate: async (onPoint) => {
+      const pts: Array<[number, number]> = [
+        [innerWidth * 0.15, innerHeight * 0.15],
+        [innerWidth * 0.85, innerHeight * 0.15],
+        [innerWidth * 0.5, innerHeight * 0.5],
+        [innerWidth * 0.15, innerHeight * 0.85],
+        [innerWidth * 0.85, innerHeight * 0.85],
+      ]
+      for (const [x, y] of pts) {
+        onPoint(x, y, 0)
+        await new Promise((r) => setTimeout(r, 1200)) // a beat of looking at the dot first
+        for (let i = 0; i < 8; i++) {
+          webgazer.recordScreenPosition(x, y)
+          await new Promise((r) => setTimeout(r, 100))
+        }
+      }
+      onPoint(NaN, NaN, 1)
+    },
+  }
+}
+
+async function eyedidSource(onGaze: (g: Gaze) => void, opts: { onEyesClosed?: () => void }, key: string): Promise<GazeSource> {
   const release = await claimCamera()  // one camera owner: gaze and the camera brake never fight over the webcam
   const { default: EasySeeSo } = await import("seeso/easy-seeso")
   const sdk = new EasySeeSo()

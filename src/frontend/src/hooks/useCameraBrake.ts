@@ -41,6 +41,12 @@ export function useCameraBrake(): CameraBrake {
       .then((s) => {
         clearTimeout(timer)
         if (dead || late) return s.stop()
+        if (s.mode === "webgazer") {
+          s.stop()
+          setState("error")
+          setMessage("The camera brake needs the Eyedid key — WebGazer tracks gaze position only, not eye closure.")
+          return
+        }
         if (s.mode !== "eyedid") {
           s.stop()
           setState("error")

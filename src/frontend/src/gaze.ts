@@ -58,7 +58,7 @@ setInterval(() => { if (lastOk && performance.now() - lastOk > 500) dot.classLis
 setInterval(() => {
   const now = performance.now()
   if (rung === "scan") light(scanner.update(now))
-  else if (rung === "gaze" && source?.mode === "eyedid" && !testing && cal.style.display !== "block" && watch.lost(now)) stepDown("Eye tracking lost for 5 seconds")
+  else if (rung === "gaze" && (source?.mode === "eyedid" || source?.mode === "webgazer") && !testing && cal.style.display !== "block" && watch.lost(now)) stepDown("Eye tracking lost for 5 seconds")
 }, 100)
 function stepDown(reason: string) {
   setRung("scan", reason)
@@ -108,9 +108,13 @@ async function begin(mouse: boolean) {
   status.textContent = "Starting…"
   try {
     source = await startGaze(onGaze, { mouse, onEyesClosed })
-    if (source.mode === "eyedid") setRung("gaze")
+    const eyes = source.mode === "eyedid" || source.mode === "webgazer"
+    if (eyes) setRung("gaze")
     else setRung("pointer", "the dot follows your mouse, trackpad or head mouse")
-    status.textContent = source.mode === "eyedid" ? "Eye tracking on. Calibrate once, then look at a target." : "Pointer: the dot follows your mouse (or a head mouse). The camera brake is off in this mode."
+    status.textContent =
+      source.mode === "eyedid" ? "Eye tracking on. Calibrate once, then look at a target."
+      : source.mode === "webgazer" ? "Eye tracking on (WebGazer, no key needed). Calibrate, then look at a target."
+      : "Pointer: the dot follows your mouse (or a head mouse). The camera brake is off in this mode."
     if (source.mode === "eyedid" && localStorage.getItem("alpha.gaze.cal")) setTimeout(checkCalibration, 800)  // every startup re-checks the saved calibration
   } catch (e) {
     source = null
@@ -119,17 +123,17 @@ async function begin(mouse: boolean) {
 }
 
 $("mouse-btn").addEventListener("click", () => begin(true))
-again.addEventListener("click", () => (source?.mode === "eyedid" ? (setRung("gaze"), (status.textContent = "Eye tracking back on.")) : begin(false)))
+again.addEventListener("click", () => ((source?.mode === "eyedid" || source?.mode === "webgazer") ? (setRung("gaze"), (status.textContent = "Eye tracking back on.")) : begin(false)))
 $("cal-btn").addEventListener("click", async () => {
-  if (source?.mode !== "eyedid") return void (status.textContent = "Calibration needs eye tracking: reload this page and allow the camera.")
+  if (source?.mode !== "eyedid" && source?.mode !== "webgazer") return void (status.textContent = "Calibration needs eye tracking: reload this page and allow the camera.")
   cal.style.display = "block"
   try {
     await source.calibrate((x, y, progress) => {
       if (!Number.isNaN(x)) { calDot.style.left = `${x}px`; calDot.style.top = `${y}px` }
       calDot.style.opacity = String(1 - 0.6 * progress)
     })
-    status.textContent = "Calibrated and saved on this computer."
-    setTimeout(checkCalibration, 700)
+    status.textContent = source.mode === "eyedid" ? "Calibrated and saved on this computer." : "Calibrated for this session."
+    if (source.mode === "eyedid") setTimeout(checkCalibration, 700)
   } catch (e) {
     status.textContent = (e as Error).message
   } finally {
