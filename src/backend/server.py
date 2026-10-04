@@ -38,8 +38,9 @@ FRONTEND = Path(__file__).resolve().parents[1] / "frontend"
 UI = FRONTEND / "dist"  # the board's React app, built by `npm run build` in src/frontend
 DATA = Path("data")
 app = FastAPI()
-# only answer to our own host names, so a DNS-rebinding page can't read the log
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
+# TrustedHostMiddleware is added in main(), following --host: localhost-only by
+# default (so a DNS-rebinding page can't read the log); open when the user
+# explicitly binds to the network with --host 0.0.0.0.
 
 
 @app.middleware("http")
@@ -529,6 +530,10 @@ def main():
         board.scan_s = SCAN_S
 
     session = Session(simulated=args.sim, timing=DEMO_TIMING if args.demo else TIMING)
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=["127.0.0.1", "localhost"] if args.host in ("127.0.0.1", "localhost") else ["*"],
+    )
     print(f"rein: http://{args.host}:{args.port}", flush=True)
     try:
         uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
