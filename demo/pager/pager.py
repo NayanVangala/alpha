@@ -3,7 +3,7 @@
 
 def page(items, number, size=10):
     """The items on page `number`, counting pages from 1."""
-    start = number * size
+    start = (number - 1) * size
     return items[start : start + size]
 
 
