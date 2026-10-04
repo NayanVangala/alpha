@@ -132,6 +132,20 @@ export function Gate({ h, onConnectClick }: { h: Headband; onConnectClick: () =>
           only when you confirm. In conversation mode, what people say is transcribed by Chrome's speech service. Nothing else
           leaves this computer.
         </p>
+        <nav className="flex flex-wrap gap-2" aria-label="Other pages">
+          <a
+            href="/"
+            className="inline-flex h-7 items-center rounded-full border bg-background px-2.5 text-xs font-medium text-muted-foreground shadow-xs hover:bg-accent hover:text-accent-foreground"
+          >
+            Slides
+          </a>
+          <a
+            href="/gaze"
+            className="inline-flex h-7 items-center rounded-full border bg-background px-2.5 text-xs font-medium text-muted-foreground shadow-xs hover:bg-accent hover:text-accent-foreground"
+          >
+            Gaze
+          </a>
+        </nav>
       </div>
     </div>
   )
