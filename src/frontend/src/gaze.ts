@@ -36,7 +36,7 @@ function light(idx: number) {
 }
 let buf: Gaze[] = []
 let openNow: number | null = null
-const tracker = new TileTracker()  // sticky borders: a tile lights after 300 ms inside it, and holds until you truly leave
+const tracker = new TileTracker(0, 150) // full tile counts, 150 ms dwell: webcam gaze jitters, so a tight window rarely fills
 let lastOk = 0
 const rects = () => targets.map((t) => t.getBoundingClientRect())
 const onGaze = ({ x, y, ok, open }: Gaze) => {
@@ -47,7 +47,12 @@ const onGaze = ({ x, y, ok, open }: Gaze) => {
   dot.classList.toggle("lost", !ok)
   watch.seen(ok, performance.now())
   if (rung === "scan") return  // the dot still moves (the calibration check reads it), but the tiles follow the scanner
-  light(ok ? tracker.update(rects(), x, y, performance.now()) : tracker.current)
+  const idx = ok ? tracker.update(rects(), x, y, performance.now()) : tracker.current
+  light(idx)
+  if (!testing) { // show the tile you're dwelling on, so aiming feels alive instead of dead waiting
+    const aim = tracker.aiming
+    targets.forEach((t, i) => t.classList.toggle("aim", i === aim && i !== idx))
+  }
 }
 setInterval(() => { if (lastOk && performance.now() - lastOk > 500) dot.classList.add("lost") }, 150)  // a stale reading isn't where you are looking
 setInterval(() => {

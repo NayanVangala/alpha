@@ -43,8 +43,9 @@ const inside = (r: Rect, x: number, y: number, shrink = 0) => {
   return x >= r.left + dx && x <= r.right - dx && y >= r.top + dy && y <= r.bottom - dy
 }
 
-/** Which tile is lit. The lit tile holds until the gaze truly leaves its box; a new tile must be entered 5% in from
- * its edges, and the gaze has to stay there for `holdMs` before the highlight moves. Changing your mind restarts the timer. */
+/** Which tile is lit. The lit tile holds until the gaze truly leaves its box; a new tile lights after the
+ * gaze stays inside it for `holdMs`. Changing your mind restarts the timer. `aiming` is the tile the gaze is
+ * currently dwelling on but hasn't lit yet, so the UI can show progress. */
 export class TileTracker {
   current = -1
   private candidate = -1
@@ -54,6 +55,9 @@ export class TileTracker {
   constructor(shrink = 0.05, holdMs = 300) {
     this.shrink = shrink
     this.holdMs = holdMs
+  }
+  get aiming() {
+    return this.candidate
   }
   update(rects: Rect[], x: number, y: number, nowMs: number) {
     if (this.current >= 0 && rects[this.current] && inside(rects[this.current], x, y)) {
