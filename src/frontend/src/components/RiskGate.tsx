@@ -35,54 +35,92 @@ export function RiskGate({ s, compact }: { s: BoardState; compact?: boolean }) {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.45, ease: [0.625, 0.05, 0, 1] }}
       className={cn(
-        "flex flex-col justify-between gap-6 bg-[#06060c] text-white",
-        compact ? "flex-1 rounded-lg p-4" : "fixed inset-0 z-[15] gap-8 px-[var(--pad-x)] py-10",
+        "relative flex flex-col overflow-hidden bg-[#06060c] text-white",
+        compact ? "flex-1 rounded-lg p-4" : "fixed inset-0 z-[15] px-[var(--pad-x)] py-10",
       )}
     >
-      <p className="m-0 flex items-center justify-between gap-3 text-tag font-semibold uppercase tracking-[0.08em] text-white/70">
-        <span className="flex items-center gap-2" style={{ color: LIME }}>
-          <ShieldAlert className="size-4" aria-hidden />
-          Not on the safe list · this one needs you
-        </span>
-        {!compact && <span>Claude Code</span>}
-      </p>
-
-      <div className="grid gap-3">
-        <p className={cn("m-0 text-white/70", compact ? "text-label" : "text-title")}>{agent.title}</p>
-        <p
-          className={cn(
-            "m-0 font-mono font-medium tracking-[-0.03em] [overflow-wrap:anywhere]",
-            compact ? "line-clamp-3 text-title leading-[1.1]" : "line-clamp-6 text-[clamp(1.8rem,5.2vw,5rem)] leading-[1.08]",
-          )}
-        >
-          {agent.detail}
+      {/* ambient glow: a faint lime wash behind the risky step, ultramarine pooling at the bottom */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_65%_at_50%_28%,rgba(155,255,96,0.09),transparent_70%),radial-gradient(120%_90%_at_50%_112%,rgba(0,4,246,0.28),transparent_60%)]"
+      />
+      <div className={cn("relative z-10 flex flex-1 flex-col justify-between", compact ? "gap-6" : "gap-8")}>
+        <p className="m-0 flex items-center justify-between gap-3 text-tag font-semibold uppercase tracking-[0.08em] text-white/70">
+          <span className="flex items-center gap-2.5" style={{ color: LIME }}>
+            <motion.span
+              aria-hidden
+              animate={{ scale: [1, 1.18, 1], opacity: [1, 0.7, 1] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <ShieldAlert className="size-4" aria-hidden />
+            </motion.span>
+            Not on the safe list · this one needs you
+          </span>
+          {!compact && <span>Claude Code</span>}
         </p>
-      </div>
 
-      <div className={cn("grid gap-4", !compact && "grid-cols-2 max-[800px]:grid-cols-1")}>
-        <div className="grid gap-3 rounded-lg border-2 p-5" style={{ borderColor: LIME }}>
-          <p className={cn("m-0 font-medium tracking-[-0.04em]", compact ? "text-title" : "text-headline leading-none")} style={{ color: LIME }}>
-            Bite down
+        <div className="grid gap-3">
+          <p className={cn("m-0 text-white/70", compact ? "text-label" : "text-title")}>{agent.title}</p>
+          <p
+            className={cn(
+              "m-0 font-mono font-medium tracking-[-0.03em] [overflow-wrap:anywhere]",
+              compact ? "line-clamp-3 text-title leading-[1.1]" : "line-clamp-6 text-[clamp(1.8rem,5.2vw,5rem)] leading-[1.08]",
+            )}
+          >
+            {agent.detail}
           </p>
-          <p className="m-0 text-body text-white/80">and hold for a full second to approve.</p>
-          <div className="relative h-2.5 rounded-xs bg-white/15">
-            <div className="absolute inset-y-0 left-0 rounded-xs" style={{ width: `${held * 100}%`, background: LIME, transition: "width 0.1s linear" }} />
-          </div>
-          <p className="m-0 h-5 text-label text-white/60">{held >= 1 ? "Held. Approving…" : muscle >= 1 ? "Keep holding…" : "Jaw relaxed"}</p>
         </div>
-        <div className="grid gap-3 rounded-lg border-2 border-white/40 p-5">
-          <p className={cn("m-0 flex items-center gap-3 font-medium tracking-[-0.04em]", compact ? "text-title" : "text-headline leading-none")}>
-            <EyeOff className="size-[0.8em]" aria-hidden />
-            Close your eyes
-          </p>
-          <p className="m-0 text-body text-white/80">to veto. Claude stops and asks what's next.</p>
-          <div className="relative h-2.5 rounded-xs bg-white/15">
-            <div className="absolute inset-y-0 left-0 rounded-xs bg-white" style={{ width: `${alpha * 100}%`, transition: "width 0.2s linear" }} />
+
+        <div className={cn("grid gap-4", !compact && "grid-cols-2 max-[800px]:grid-cols-1")}>
+          <div
+            className={cn(
+              "grid gap-3 rounded-lg border-2 p-5 transition-shadow duration-200",
+              held > 0 && "shadow-[0_0_60px_-12px_rgba(155,255,96,0.65)]",
+            )}
+            style={{ borderColor: LIME }}
+          >
+            <p
+              className={cn("m-0 font-medium tracking-[-0.04em] [text-shadow:0_0_28px_rgba(155,255,96,0.55)]", compact ? "text-title" : "text-headline leading-none")}
+              style={{ color: LIME }}
+            >
+              Bite down
+            </p>
+            <p className="m-0 text-body text-white/80">and hold for a full second to approve.</p>
+            <div className="relative h-3 overflow-hidden rounded-xs bg-white/15">
+              <div
+                className="absolute inset-y-0 left-0 rounded-xs"
+                style={{ width: `${held * 100}%`, background: LIME, boxShadow: "0 0 14px rgba(155,255,96,0.9)", transition: "width 0.1s linear" }}
+              />
+            </div>
+            <p className="m-0 h-5 text-label text-white/60">
+              {held >= 1 ? (
+                <b className="font-semibold" style={{ color: LIME }}>Held. Approving…</b>
+              ) : muscle >= 1 ? (
+                "Keep holding…"
+              ) : (
+                "Jaw relaxed"
+              )}
+            </p>
           </div>
-          <p className="m-0 h-5 text-label text-white/60">{alpha >= 1 ? "Eyes closed: vetoing" : "Eyes open"}</p>
+          <div
+            className={cn(
+              "grid gap-3 rounded-lg border-2 p-5 transition-shadow duration-200",
+              alpha >= 1 ? "border-white shadow-[0_0_50px_-12px_rgba(255,255,255,0.5)]" : "border-white/40",
+            )}
+          >
+            <p className={cn("m-0 flex items-center gap-3 font-medium tracking-[-0.04em]", compact ? "text-title" : "text-headline leading-none")}>
+              <EyeOff className="size-[0.8em]" aria-hidden />
+              Close your eyes
+            </p>
+            <p className="m-0 text-body text-white/80">to veto. Claude stops and asks what's next.</p>
+            <div className="relative h-3 overflow-hidden rounded-xs bg-white/15">
+              <div className="absolute inset-y-0 left-0 rounded-xs bg-white" style={{ width: `${alpha * 100}%`, transition: "width 0.2s linear" }} />
+            </div>
+            <p className="m-0 h-5 text-label text-white/60">{alpha >= 1 ? "Eyes closed: vetoing" : "Eyes open"}</p>
+          </div>
         </div>
+        <p className="m-0 text-label text-white/50">Doing nothing does nothing: this waits for you.</p>
       </div>
-      <p className="m-0 text-label text-white/50">Doing nothing does nothing: this waits for you.</p>
     </motion.div>
   )
 }

@@ -74,9 +74,12 @@ export function Hud() {
               type="button"
               aria-pressed={camera.state === "on"}
               title={camera.message || "Camera brake: the webcam sees your eyes close and brakes Claude. Uses your camera."}
-              onClick={camera.toggle}
+              onClick={(e) => {
+                e.currentTarget.blur()
+                camera.toggle()
+              }}
               className={cn(
-                "ml-1 cursor-pointer rounded-sm border-0 bg-transparent px-1 text-tag [-webkit-app-region:no-drag]",
+                "ml-1 cursor-pointer rounded-sm border-0 bg-transparent px-1 text-tag transition-colors duration-150 [-webkit-app-region:no-drag]",
                 camera.state === "on" ? "font-semibold text-ultramarine" : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -86,8 +89,11 @@ export function Hud() {
               type="button"
               title="Close (⌃⌥Q)"
               aria-label="Close rein's floating window"
-              onClick={() => window.close()}
-              className="-mr-1 ml-1 grid size-6 cursor-pointer place-items-center rounded-sm border-0 bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground [-webkit-app-region:no-drag]"
+              onClick={(e) => {
+                e.currentTarget.blur()
+                window.close()
+              }}
+              className="-mr-1 ml-1 grid size-6 cursor-pointer place-items-center rounded-sm border-0 bg-transparent text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground [-webkit-app-region:no-drag]"
             >
               <X className="size-4" aria-hidden />
             </button>
@@ -255,13 +261,29 @@ function Connect({ h }: { h: Headband }) {
             {d.name}
             <span className="font-normal text-muted-foreground">{d.simulated ? " · for testing" : ""}</span>
           </span>
-          <Button type="button" className="h-9 rounded-sm px-4 text-label" disabled={!!connectingTo} onClick={() => connect(d.name)}>
+          <Button
+            type="button"
+            className="h-9 rounded-sm px-4 text-label"
+            disabled={!!connectingTo}
+            onClick={(e) => {
+              e.currentTarget.blur()
+              connect(d.name)
+            }}
+          >
             {connectingTo === d.name ? "Connecting…" : "Connect"}
           </Button>
         </div>
       ))}
       {!scanning && !usable.length && (
-        <Button type="button" variant="outline" className="h-9 w-fit rounded-sm text-label" onClick={rescan}>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-9 w-fit rounded-sm text-label"
+          onClick={(e) => {
+            e.currentTarget.blur()
+            rescan()
+          }}
+        >
           Scan again
         </Button>
       )}

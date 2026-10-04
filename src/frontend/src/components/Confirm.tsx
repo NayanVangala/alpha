@@ -16,7 +16,7 @@ export function Confirm({ s }: { s: BoardState }) {
         ? `Call ${who}`
         : "Say out loud"
   return (
-    <section className="flex flex-1 flex-col justify-center gap-7 rounded-lg bg-card p-[clamp(24px,4vw,64px)]">
+    <section className="flex flex-1 flex-col justify-center gap-7 rounded-lg border-t-[3px] border-t-ultramarine bg-card p-[clamp(24px,4vw,64px)] shadow-[0_28px_70px_-45px_rgba(0,4,246,0.5)] ring-1 ring-border">
       <p className={cn("m-0 text-body font-semibold text-ultramarine", s.finding && "shimmer")}>{doing}</p>
       <RollText
         key={text}

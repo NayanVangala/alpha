@@ -1,7 +1,7 @@
 import { type CSSProperties, useEffect, useMemo, useRef } from "react"
 
-const COLS = 16
-const ROWS = 10
+const COLS = 20
+const ROWS = 12
 
 /**
  * Page change: the screen goes solid ultramarine, then clears in a ragged left-to-right sweep of blocks

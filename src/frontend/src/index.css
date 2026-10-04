@@ -79,6 +79,16 @@
 /* the solid ultramarine page start, painted before the app loads (see index.html) */
 #boot { position: fixed; inset: 0; z-index: 60; background: #0004f6; }
 
+/* brand-tinted text selection */
+::selection { background: rgba(0, 4, 246, 0.16); }
+
+/* thin, quiet scrollbar for the sidebar (desktop vertical scroll) */
+.thin-scroll { scrollbar-width: thin; scrollbar-color: rgba(32, 29, 29, 0.22) transparent; }
+.thin-scroll::-webkit-scrollbar { width: 6px; }
+.thin-scroll::-webkit-scrollbar-track { background: transparent; }
+.thin-scroll::-webkit-scrollbar-thumb { background: rgba(32, 29, 29, 0.22); border-radius: 3px; }
+.thin-scroll::-webkit-scrollbar-thumb:hover { background: rgba(32, 29, 29, 0.35); }
+
 /* page change: ultramarine, then a ragged sweep of blocks (Wipe.tsx) */
 .wipe { position: fixed; inset: 0; z-index: 50; display: grid; pointer-events: none; }
 .wipe span { background: #0004f6; box-shadow: 0 0 0 1px #0004f6; transform: scale(0); transition: transform 0.3s cubic-bezier(0.625, 0.05, 0, 1) var(--d); }

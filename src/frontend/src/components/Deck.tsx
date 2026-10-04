@@ -26,7 +26,7 @@ export function Deck({ s }: { s: BoardState }) {
 
   return (
     <div className="flex flex-1 flex-col items-center gap-[18px]">
-      <div className="relative flex w-full max-w-[1100px] flex-1 overflow-hidden rounded-lg bg-ultramarine text-white">
+      <div className="relative flex w-full max-w-[1100px] flex-1 overflow-hidden rounded-lg bg-ultramarine text-white shadow-[0_40px_100px_-40px_rgba(0,4,246,0.55)] ring-1 ring-inset ring-white/15">
         {/* the pixel aura swells with the wearer's live alpha waves */}
         <div className="absolute inset-0 transition-opacity duration-500" style={{ opacity: auraOpacity(s.headband.alpha) }}>
           <FlickeringGrid
@@ -68,9 +68,13 @@ export function Deck({ s }: { s: BoardState }) {
               {tile.more ? "…" : ""}
             </p>
             {s.auto_s != null && s.auto_total ? (
-              <Autopilot left={s.auto_s} total={s.auto_total} className="text-body text-white" />
+              <span className="w-fit rounded-full bg-white/12 px-4 py-2 ring-1 ring-white/25 backdrop-blur-sm">
+                <Autopilot left={s.auto_s} total={s.auto_total} className="text-body text-white" />
+              </span>
             ) : s.talk_s != null ? (
-              <Autopilot left={s.talk_s} total={s.talk_total} verb="Saying it" then="close your eyes to guess again" className="text-body text-white" />
+              <span className="w-fit rounded-full bg-white/12 px-4 py-2 ring-1 ring-white/25 backdrop-blur-sm">
+                <Autopilot left={s.talk_s} total={s.talk_total} verb="Saying it" then="close your eyes to guess again" className="text-body text-white" />
+              </span>
             ) : (
               <p className="m-0 text-body text-white/80">
                 <b className="font-semibold text-white">Bite down</b>: {tile.more ? "yes, that" : "yes"} ·{" "}
@@ -81,7 +85,7 @@ export function Deck({ s }: { s: BoardState }) {
         </AnimatePresence>
         {s.next_s != null && s.scan_s ? (
           <div
-            className="absolute inset-x-0 bottom-0 z-20 h-2 origin-left bg-white/85"
+            className="absolute inset-x-0 bottom-0 z-20 h-[6px] origin-left bg-white/85 shadow-[0_0_12px_rgba(255,255,255,0.7)]"
             style={{ transform: `scaleX(${Math.max(0, Math.min(1, s.next_s / s.scan_s))})` }}
           />
         ) : null}
@@ -90,7 +94,10 @@ export function Deck({ s }: { s: BoardState }) {
         {s.tiles.map((t, i) => (
           <span
             key={i}
-            className={cn("relative size-2 rounded-xs", i === lit ? "bg-ultramarine" : t.guess ? "shadow-[inset_0_0_0_1.5px_#0004f6]" : "bg-foreground/20")}
+            className={cn(
+              "relative size-2 rounded-xs",
+              i === lit ? "bg-ultramarine shadow-[0_0_12px_2px_rgba(0,4,246,0.45)]" : t.guess ? "shadow-[inset_0_0_0_1.5px_#0004f6]" : "bg-foreground/20",
+            )}
           >
             {i === lit && (
               <motion.span layoutId="lit-dot" className="absolute -inset-1 rounded-xs border-[1.5px] border-ultramarine" transition={{ duration: 0.3, ease: EASE }} />

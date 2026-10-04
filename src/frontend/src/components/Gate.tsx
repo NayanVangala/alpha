@@ -55,12 +55,12 @@ export function Gate({ h, onConnectClick }: { h: Headband; onConnectClick: () =>
         </p>
 
         {refused ? (
-          <Button type="button" className="w-fit rounded-full px-6" onClick={() => void api.calibrate()}>
+          <Button type="button" className="w-fit rounded-full px-6 shadow-[0_10px_28px_-14px_rgba(0,4,246,0.7)]" onClick={(e) => { e.currentTarget.blur(); void api.calibrate() }}>
             Try again
           </Button>
         ) : calibrating ? (
           <div className="grid gap-4">
-            <p className="m-0 text-countdown font-medium leading-[0.9] tracking-[-0.06em] tabular-nums">
+            <p className="m-0 text-countdown font-medium leading-[0.9] tracking-[-0.06em] text-ultramarine tabular-nums [text-shadow:0_0_60px_rgba(0,4,246,0.28)]">
               {Math.ceil(left)}
               <small className="ml-2.5 text-body font-normal tracking-[-0.01em] text-muted-foreground">seconds</small>
             </p>
@@ -74,14 +74,14 @@ export function Gate({ h, onConnectClick }: { h: Headband; onConnectClick: () =>
             <Progress value={(left / CALIBRATE_S) * 100} className="h-2.5 rounded-xs bg-border" />
           </div>
         ) : (
-          <div className="rounded-lg bg-card" aria-live="polite">
+          <div className="rounded-lg bg-card shadow-[0_24px_70px_-45px_rgba(0,4,246,0.45)] ring-1 ring-border" aria-live="polite">
             <div className="flex items-baseline justify-between border-b px-[22px] pb-3.5 pt-[18px] text-label text-muted-foreground">
               <b className="font-medium text-foreground">Headbands nearby</b>
               <Button
                 type="button"
                 variant="link"
                 className="h-auto p-0 text-label font-normal text-muted-foreground underline underline-offset-[0.18em]"
-                onClick={rescan}
+                onClick={(e) => { e.currentTarget.blur(); rescan() }}
               >
                 Scan again
               </Button>
@@ -100,7 +100,7 @@ export function Gate({ h, onConnectClick }: { h: Headband; onConnectClick: () =>
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.05 }}
-                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-t px-[22px] py-4 first:border-t-0"
+                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-t px-[22px] py-4 transition-colors first:border-t-0 hover:bg-muted/40"
                 >
                   <div>
                     <div className={cn("font-medium tracking-[-0.02em]", !d.supported && "text-muted-foreground")}>{d.name}</div>
@@ -110,7 +110,7 @@ export function Gate({ h, onConnectClick }: { h: Headband; onConnectClick: () =>
                     </div>
                   </div>
                   {d.supported ? (
-                    <Button type="button" className="h-[46px] rounded-sm px-[18px] text-label font-medium" disabled={!!connectingTo} onClick={() => connect(d.name)}>
+                    <Button type="button" className="h-[46px] rounded-sm px-[18px] text-label font-medium shadow-[0_10px_28px_-14px_rgba(0,4,246,0.7)]" disabled={!!connectingTo} onClick={(e) => { e.currentTarget.blur(); connect(d.name) }}>
                       {connectingTo === d.name ? "Connecting…" : "Connect"}
                     </Button>
                   ) : (

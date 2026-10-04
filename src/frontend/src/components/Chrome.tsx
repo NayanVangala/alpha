@@ -43,7 +43,7 @@ function TopButton({ onClick, ...props }: { onClick: () => void; children: React
   )
 }
 
-const topLink = "inline-flex h-6 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted-foreground border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground rounded-full"
+const topLink = "inline-flex h-6 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted-foreground border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground rounded-full transition-colors duration-150"
 
 type HeaderProps = {
   status: string
@@ -164,7 +164,10 @@ export function StartOverlay({ onStart }: { onStart: () => void }) {
   return (
     <button
       type="button"
-      onClick={onStart}
+      onClick={(e: MouseEvent<HTMLButtonElement>) => {
+        e.currentTarget.blur()
+        onStart()
+      }}
       className="fixed inset-0 z-30 grid cursor-pointer place-items-center border-0 bg-background text-foreground"
     >
       <span className="grid gap-3.5 text-center">

@@ -29,10 +29,10 @@ function SideButton({
         onClick()
       }}
       className={cn(
-        "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors",
+        "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors duration-150",
         "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
         "disabled:pointer-events-none disabled:opacity-50",
-        pressed && "bg-ultramarine/10 font-medium text-ultramarine hover:bg-ultramarine/15 hover:text-ultramarine",
+        pressed && "bg-ultramarine/10 text-ultramarine hover:bg-ultramarine/15 hover:text-ultramarine",
       )}
     >
       <span
@@ -51,7 +51,7 @@ function SideLink({ href, children }: { href: string; children: ReactNode }) {
   return (
     <a
       href={href}
-      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-accent-foreground"
     >
       <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-border" />
       {children}
@@ -62,7 +62,7 @@ function SideLink({ href, children }: { href: string; children: ReactNode }) {
 function Section({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="grid gap-0.5">
-      <p className="px-3 pb-1 text-[0.68rem] font-medium uppercase tracking-[0.08em] text-muted-foreground/70">{label}</p>
+      <p className="select-none px-3 pb-1 text-[0.68rem] font-medium uppercase tracking-[0.1em] text-muted-foreground/70">{label}</p>
       {children}
     </div>
   )
@@ -87,15 +87,20 @@ export function Sidebar({ status, live, listen, nerdOpen, blinks, camera, onReca
     <aside
       aria-label="rein controls"
       className={cn(
-        "z-10 flex shrink-0 gap-1 overflow-x-auto border-b bg-card px-3 py-2",
+        "thin-scroll z-10 flex shrink-0 gap-1 overflow-x-auto border-b bg-card px-3 py-2",
+        "max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden",
         "md:sticky md:top-0 md:h-screen md:w-60 md:flex-col md:gap-5 md:overflow-y-auto md:overflow-x-visible md:border-b-0 md:border-r md:px-4 md:py-6",
+        "md:divide-y md:divide-border/60",
       )}
     >
-      <div className="flex items-center gap-2.5 px-1 md:px-3">
+      <div className="flex items-center gap-2.5 px-3">
         <span className="text-[1.15rem] font-semibold tracking-[-0.03em]">
           rein<span className="text-ultramarine">.</span>
         </span>
-        <span className={cn("size-2 rounded-full", live ? "bg-ultramarine" : "bg-idle")} aria-label={live ? "live" : "idle"} />
+        <span
+          className={cn("size-2 rounded-full transition-all duration-300", live ? "bg-ultramarine shadow-[0_0_10px_2px_rgba(0,4,246,0.4)]" : "bg-idle")}
+          aria-label={live ? "live" : "idle"}
+        />
       </div>
 
       <div className="hidden min-w-0 md:block" aria-live="polite">

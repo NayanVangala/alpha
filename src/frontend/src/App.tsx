@@ -102,11 +102,11 @@ export default function App() {
             onDisconnect={() => void api.disconnect()}
             onNerd={() => setNerdOpen((v) => !v)}
           />
-          <div className={cn("flex min-h-screen min-w-0 flex-1 flex-col", nerdOpen && "min-[901px]:mr-[min(500px,42vw)]")}>
+          <div className={cn("flex min-h-screen min-w-0 flex-1 flex-col transition-[margin] duration-300 ease-alpha", nerdOpen && "min-[901px]:mr-[min(500px,42vw)]")}>
             <Crumbs s={s} hearing={listen.interim} />
             {s.brake && <Brake className="mx-[var(--pad-x)] mt-3" />}
             {s.claude_code && <BrainPanel s={s} className="mx-[var(--pad-x)] mt-3 max-w-xl" />}
-            <main className="flex flex-1 flex-col px-[var(--pad-x)] pb-6 pt-5">
+            <main className="flex flex-1 flex-col px-[var(--pad-x)] pb-8 pt-5">
               {s.agent && <AgentAsk agent={s.agent} alpha={s.headband.alpha} />}
               {cards ? <Deck s={s} /> : <Confirm s={s} />}
             </main>
