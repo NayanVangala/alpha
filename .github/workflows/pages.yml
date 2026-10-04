@@ -31,7 +31,6 @@ jobs:
         working-directory: src/frontend
       - run: |
           cp dist/landing.html dist/index.html
-          echo alphabrake.xyz > dist/CNAME
           touch dist/.nojekyll
         working-directory: src/frontend
       - uses: actions/upload-pages-artifact@v3
