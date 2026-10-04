@@ -154,7 +154,8 @@ class Board:
         self.question = None  # the agent question on screen
         self.answers = OrderedDict()  # question id -> the picked option, or None when the wearer went back
         self.brake_until = 0.0  # the agent may not take another step before this
-        self.brake_enabled = os.environ.get("REIN_BRAKE", "on").lower() != "off"  # REIN_BRAKE=off: closed eyes stop nothing (for hacking on the project, not for demos)
+        mode = os.environ.get("REIN_BRAKE", "on").lower()  # on | camera (only the webcam's closed eyes count: the headband's alpha is ignored) | off (closed eyes stop nothing: for hacking)
+        self.brake_enabled, self.camera_only = mode != "off", mode == "camera"
         self.auto_at = None  # when the agent question on screen answers itself with rein's guess
         self.auto_streak = 0  # automatic "what next" answers since the wearer last picked one
         self.talk_at = None  # when the guessed sentence on screen says itself
@@ -344,7 +345,7 @@ class Board:
         """
         with self.lock:
             self.tick()
-            if kind == "eyes_closed" and not self.brake_enabled:
+            if kind == "eyes_closed" and (not self.brake_enabled or (self.camera_only and by != "camera")):
                 return
             self.counts["keys" if by == "keys" else "wearer"] += 1
             who = by if by in ("keys", "camera") else "head" if kind in ("nod", "shake") else "brain" if kind == "eyes_closed" else "muscle"

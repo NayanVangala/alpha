@@ -624,3 +624,12 @@ def test_the_brake_can_be_switched_off_for_hacking(b):
     b.ask(1, "permission", "Claude wants to run", "git push", ["Allow", "Deny"], auto=False)
     b.handle("eyes_closed")
     assert not b.braked() and b.answer_of(1) == (False, None)
+
+
+def test_camera_only_brake_ignores_the_headband_but_not_the_webcam(b):
+    b.brake_enabled, b.camera_only = True, True
+    b.ask(1, "permission", "Claude wants to run", "git push", ["Allow", "Deny"], auto=False)
+    b.handle("eyes_closed")  # the headband's alpha: ignored in this mode
+    assert not b.braked() and b.answer_of(1) == (False, None)
+    b.handle("eyes_closed", by="camera")
+    assert b.braked() and b.answer_of(1) == (True, "Deny")
