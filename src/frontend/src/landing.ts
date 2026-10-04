@@ -468,9 +468,12 @@ if (still) {
   addEventListener("resize", () => ScrollTrigger.refresh())
   requestAnimationFrame(loop)
 }
-/* ---------- auto-play: one button, slow scroll through the whole deck ---------- */
+/* ---------- auto-play: dwell on each slide to read, then a smooth hop to the next ---------- */
 const playBtn = $<HTMLButtonElement>("autoplay")
+const PLAY_DWELL = 10 // seconds reading each slide; the hop itself runs at toScene's normal speed
+const HOP_S = 2.2 // must match the duration inside toScene
 let playing = false
+let playTimer: ReturnType<typeof setTimeout> | null = null
 const setPlaying = (on: boolean) => {
   playing = on
   playBtn.querySelector("span")!.textContent = on ? "Stop" : "Auto-play"
@@ -478,15 +481,22 @@ const setPlaying = (on: boolean) => {
 const stopAuto = () => {
   if (!playing) return
   setPlaying(false)
-  if (lenis) { lenis.stop(); lenis.start() } // cancel the in-flight scrollTo
+  if (playTimer) { clearTimeout(playTimer); playTimer = null }
+  if (lenis) { lenis.stop(); lenis.start() } // cancel any in-flight scroll
+}
+const advance = () => {
+  playTimer = null
+  if (!playing || !lenis) return
+  if (cur >= SCENES - 1) return stopAuto() // last slide read: done
+  toScene(cur + 1)
+  playTimer = setTimeout(advance, (PLAY_DWELL + HOP_S) * 1000)
 }
 playBtn.addEventListener("click", () => {
   if (playing) return stopAuto()
   if (!lenis) return
-  const max = document.documentElement.scrollHeight - innerHeight
-  if (scrollY > max - 40) lenis.scrollTo(0, { immediate: true })
   setPlaying(true)
-  lenis.scrollTo(max, { duration: 120, easing: (t) => t, onComplete: () => setPlaying(false) })
+  if (cur >= SCENES - 1) toScene(0)
+  playTimer = setTimeout(advance, (PLAY_DWELL + HOP_S) * 1000)
 })
 if (!lenis) playBtn.hidden = true // still mode: no smooth scroll to drive
 addEventListener("wheel", stopAuto, { passive: true })
