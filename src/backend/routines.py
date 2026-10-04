@@ -17,14 +17,18 @@ from . import actions
 
 ROOT = Path(__file__).resolve().parents[2]
 USER_FILE = Path("data/routines.json")
-MAX = 5  # Home allows six tiles, and the routines screen shows these plus nothing else
+MAX = 6  # Home allows six tiles, and the routines screen shows these plus nothing else
 DEFAULTS = [
     {"name": "Run the tests", "kind": "claude", "dir": "demo/pager",
      "mission": "Run the tests in this project. If any fail, find the cause and fix it, then run them again."},
     {"name": "Research alpha waves", "kind": "claude", "dir": "demo/web",
      "mission": "Open en.wikipedia.org and read the page on alpha waves, then write a five-line summary into notes.md."},
-    {"name": "Explain this project", "kind": "claude", "dir": "demo/pager",
-     "mission": "Read the files here and explain in three sentences what this project does."},
+    {"name": "Find lunch", "kind": "claude", "dir": "demo/web",
+     "mission": "Using the browser, find a highly-rated wheelchair-accessible restaurant near San Ramon, California. Write its name, address, rating, and one sentence on why it is a good pick into lunch.md in this directory. Then stop."},
+    {"name": "Morning briefing", "kind": "claude", "dir": "demo/web",
+     "mission": "It is morning. Get today's date. Open https://api.open-meteo.com/v1/forecast?latitude=37.78&longitude=-121.98&current=temperature_2m,weathercode&daily=temperature_2m_max,temperature_2m_min&timezone=America%2FLos_Angeles&temperature_unit=fahrenheit in the browser and read the current temperature and today's high and low. Write a 30-second spoken-style morning briefing (date, weather, whether a jacket is needed) into briefing.md in this directory. Then read it aloud with: say -f briefing.md. That last step will ask the wearer for a bite, which is correct: making sound needs approval. Then stop."},
+    {"name": "Room remote", "kind": "claude", "dir": "demo/pager",
+     "mission": "You are the wearer's room remote. Set this Mac's system volume to 70 percent with: osascript -e 'set volume output volume 70'. That step will ask the wearer for a bite, which is correct: the room must not change without approval. Do nothing else, then stop."},
     {"name": "Run my n8n workflow", "kind": "webhook", "env": "N8N_WEBHOOK_URL"},
 ]
 
