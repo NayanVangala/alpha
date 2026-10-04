@@ -152,14 +152,20 @@ addEventListener("keydown", (e) => {
    lit (gazed or scanned), confirm it — the same as Space. Skipped while the brake is on, so closing your eyes to stop
    doesn't also "select" the tile you're looking at. */
 let lastWearer = -1
+const dbg = document.createElement("p")
+dbg.id = "bite-dbg"
+dbg.style.cssText = "position:fixed;bottom:8px;right:12px;margin:0;font:11px/1.4 monospace;color:#888;z-index:99"
+document.body.append(dbg)
 setInterval(async () => {
   let s: { counts?: { wearer?: number }; brake?: unknown } | null = null
+  let err = ""
   try {
     s = (await (await fetch("/api/board")).json()) as { counts?: { wearer?: number }; brake?: unknown }
-  } catch {
-    return // board not running: the gaze page still works on its own
+  } catch (e) {
+    err = "fetch failed"
   }
   const w = s?.counts?.wearer ?? -1
+  dbg.textContent = `bite-link: wearer=${w} last=${lastWearer} tile=${on ? on.textContent : "none"} brake=${!!s?.brake} ${err}`
   if (lastWearer >= 0 && w > lastWearer && on && !s?.brake) {
     picked.textContent = `Selected: ${on.textContent} (bite)`
     if (rung === "scan") scanner.restart(performance.now())
