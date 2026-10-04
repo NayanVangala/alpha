@@ -138,3 +138,25 @@ export class LossWatch {
     return nowMs - this.lastOk >= this.lostMs
   }
 }
+
+/** A bite is the board's headband-input count rising. It picks the tile that was lit within `lookbackMs` before the poll
+ * sees the rise, because a clench shakes the face and the gaze can leave the tile before the count arrives. */
+export class BiteLink {
+  private last = -1
+  private lit: string | null = null
+  private litAt = 0
+  private lookbackMs: number
+  constructor(lookbackMs = 800) {
+    this.lookbackMs = lookbackMs
+  }
+  seeLit(id: string | null, nowMs: number) {
+    if (id !== null) { this.lit = id; this.litAt = nowMs }
+  }
+  /** wearer: the count, or -1 when the poll failed (the next good poll still sees the rise). Returns the picked tile or null. */
+  poll(wearer: number, braking: boolean, nowMs: number): string | null {
+    if (wearer < 0) return null
+    const rose = this.last >= 0 && wearer > this.last
+    this.last = wearer
+    return rose && !braking && this.lit !== null && nowMs - this.litAt <= this.lookbackMs ? this.lit : null
+  }
+}

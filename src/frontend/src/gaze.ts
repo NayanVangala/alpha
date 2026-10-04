@@ -1,5 +1,5 @@
 import { type Gaze, type GazeSource, startGaze } from "@/lib/gaze"
-import { LossWatch, Scanner, TileTracker, calibrationHolds } from "@/lib/gazeKit"
+import { BiteLink, LossWatch, Scanner, TileTracker, calibrationHolds } from "@/lib/gazeKit"
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -30,8 +30,10 @@ function setRung(next: Rung, reason = "") {
   if (next === "scan") scanner.restart(performance.now())
   if (next === "gaze") watch = new LossWatch(performance.now())
 }
+const bite = new BiteLink()
 function light(idx: number) {
   const under = idx >= 0 ? targets[idx] : null
+  if (under) bite.seeLit(under.textContent, performance.now())
   if (under !== on) { on?.classList.remove("on"); under?.classList.add("on"); on = under }
 }
 let buf: Gaze[] = []
@@ -151,26 +153,30 @@ addEventListener("keydown", (e) => {
 /* Gaze points, bite picks: watch the board for real headband input. When the wearer's input count rises and a tile is
    lit (gazed or scanned), confirm it — the same as Space. Skipped while the brake is on, so closing your eyes to stop
    doesn't also "select" the tile you're looking at. */
-let lastWearer = -1
 const dbg = document.createElement("p")
 dbg.id = "bite-dbg"
 dbg.style.cssText = "position:fixed;bottom:8px;right:12px;margin:0;font:11px/1.4 monospace;color:#888;z-index:99"
 document.body.append(dbg)
+let polling = false
 setInterval(async () => {
+  if (polling) return  // one request in flight: late replies must not replay an old count
+  polling = true
   let s: { counts?: { wearer?: number }; brake?: unknown } | null = null
   let err = ""
   try {
     s = (await (await fetch("/api/board")).json()) as { counts?: { wearer?: number }; brake?: unknown }
-  } catch (e) {
+  } catch {
     err = "fetch failed"
+  } finally {
+    polling = false
   }
   const w = s?.counts?.wearer ?? -1
-  dbg.textContent = `bite-link: wearer=${w} last=${lastWearer} tile=${on ? on.textContent : "none"} brake=${!!s?.brake} ${err}`
-  if (lastWearer >= 0 && w > lastWearer && on && !s?.brake) {
-    picked.textContent = `Selected: ${on.textContent} (bite)`
+  const tile = bite.poll(w, !!s?.brake, performance.now())
+  dbg.textContent = `bite-link: wearer=${w} tile=${on ? on.textContent : "none"} brake=${!!s?.brake} ${tile ? `PICKED ${tile}` : ""} ${err}`
+  if (tile) {
+    picked.textContent = `Selected: ${tile} (bite)`
     if (rung === "scan") scanner.restart(performance.now())
   }
-  lastWearer = w
 }, 150)
 
 begin(false)

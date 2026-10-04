@@ -41,6 +41,8 @@ app = FastAPI()
 # TrustedHostMiddleware is added in main(), following --host: localhost-only by
 # default (so a DNS-rebinding page can't read the log); open when the user
 # explicitly binds to the network with --host 0.0.0.0.
+def allowed_hosts(bind):
+    return ["127.0.0.1", "localhost"] if bind in ("127.0.0.1", "localhost") else ["*"]
 
 
 @app.middleware("http")
@@ -532,7 +534,7 @@ def main():
     session = Session(simulated=args.sim, timing=DEMO_TIMING if args.demo else TIMING)
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=["127.0.0.1", "localhost"] if args.host in ("127.0.0.1", "localhost") else ["*"],
+        allowed_hosts=allowed_hosts(args.host),
     )
     print(f"rein: http://{args.host}:{args.port}", flush=True)
     try:

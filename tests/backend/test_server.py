@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from src.backend import server
 from src.backend.coach import SAMPLE_EVERY_S, open_db
@@ -40,7 +41,10 @@ def test_nerd_stats_without_a_live_headband(api):
 
 def test_rejects_foreign_host_and_cross_site_writes(api):
     client, _ = api
-    assert client.get("/api/state", headers={"host": "rebind.evil.example:8000"}).status_code == 400
+    assert server.allowed_hosts("127.0.0.1") == server.allowed_hosts("localhost") == ["127.0.0.1", "localhost"]
+    assert server.allowed_hosts("0.0.0.0") == ["*"]  # only an explicit --host 0.0.0.0 opens the board to the network
+    locked = TestClient(TrustedHostMiddleware(server.app, allowed_hosts=server.allowed_hosts("127.0.0.1")), base_url="http://127.0.0.1:8000")
+    assert locked.get("/api/state", headers={"host": "rebind.evil.example:8000"}).status_code == 400
     assert client.post("/api/calibrate", headers={"origin": "https://evil.example"}).status_code == 403
     assert client.post("/api/calibrate", headers={"origin": "http://127.0.0.1:8000"}).status_code == 200
     assert server.session.coach.want_calibration
