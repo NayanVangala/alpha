@@ -114,7 +114,7 @@ export default function App() {
       {ready && s.screen === "agent" && s.agent?.gate && !s.overlay && <RiskGate s={s} />}
       {s && open && <Overlays s={s} />}
       {s && open && !started && <StartOverlay onStart={start} />}
-      <NerdPanel open={nerdOpen} />
+      <NerdPanel open={nerdOpen} onClose={() => setNerdOpen(false)} />
       <Toaster position="bottom-center" offset={84} toastOptions={{ className: "rein-toast" }} />
     </>
   )

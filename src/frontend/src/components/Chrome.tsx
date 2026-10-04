@@ -22,12 +22,13 @@ export function BlinkLight({ n }: { n: number }) {
   )
 }
 
-/** A quiet underlined text button. It drops focus after a click, so Space (a bite) can't press it again. */
-function TextButton({ onClick, ...props }: { onClick: () => void; children: ReactNode; pressed?: boolean; disabled?: boolean; title?: string }) {
+/** A small real button in the header. It drops focus after a click, so Space (a bite) can't press it again. */
+function TopButton({ onClick, ...props }: { onClick: () => void; children: ReactNode; pressed?: boolean; disabled?: boolean; title?: string }) {
   return (
     <Button
       type="button"
-      variant="link"
+      variant="outline"
+      size="xs"
       aria-pressed={props.pressed}
       disabled={props.disabled}
       title={props.title}
@@ -35,12 +36,14 @@ function TextButton({ onClick, ...props }: { onClick: () => void; children: Reac
         e.currentTarget.blur()
         onClick()
       }}
-      className="h-auto p-0 text-label font-normal text-muted-foreground underline underline-offset-[0.18em] aria-pressed:font-semibold aria-pressed:text-ultramarine"
+      className="rounded-full text-muted-foreground aria-pressed:border-ultramarine aria-pressed:font-semibold aria-pressed:text-ultramarine"
     >
       {props.children}
     </Button>
   )
 }
+
+const topLink = "inline-flex h-6 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted-foreground border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground rounded-full"
 
 type HeaderProps = {
   status: string
@@ -65,17 +68,17 @@ export function Header({ status, live, listen, nerdOpen, blinks, camera, onRecal
         <span className={cn("size-2 rounded-xs", live ? "bg-ultramarine" : "bg-idle")} />
         <span>{status}</span>
         <BlinkLight n={blinks} />
-        <TextButton
+        <TopButton
           onClick={listen.toggle}
           pressed={listen.listening}
           disabled={!listen.supported}
           title={listen.supported ? undefined : "Conversation mode needs Chrome or Edge"}
         >
           {listen.listening ? "Listening" : "Listen"}
-        </TextButton>
-        <TextButton onClick={onRecalibrate}>Recalibrate</TextButton>
-        <TextButton onClick={onDisconnect}>Disconnect</TextButton>
-        <TextButton
+        </TopButton>
+        <TopButton onClick={onRecalibrate}>Recalibrate</TopButton>
+        <TopButton onClick={onDisconnect}>Disconnect</TopButton>
+        <TopButton
           onClick={() => {
             setNarrating(!narrating)
             setNarr(!narrating)
@@ -84,16 +87,16 @@ export function Header({ status, live, listen, nerdOpen, blinks, camera, onRecal
           title="Reads each of Claude's questions aloud, and says when it's stopped"
         >
           Narration
-        </TextButton>
-        <TextButton onClick={camera.toggle} pressed={camera.state === "on" || camera.state === "starting"} title={camera.message || "The webcam sees your eyes close and brakes Claude. Uses your camera."}>
+        </TopButton>
+        <TopButton onClick={camera.toggle} pressed={camera.state === "on" || camera.state === "starting"} title={camera.message || "The webcam sees your eyes close and brakes Claude. Uses your camera."}>
           Camera brake{camera.state === "starting" ? "…" : camera.state === "error" ? " (!)" : ""}
-        </TextButton>
+        </TopButton>
         {camera.state === "error" && <span className="max-w-[28ch] truncate" title={camera.message}>{camera.message}</span>}
-        <TextButton onClick={onNerd} pressed={nerdOpen}>
+        <TopButton onClick={onNerd} pressed={nerdOpen}>
           Stats for nerds
-        </TextButton>
-        <a className="underline decoration-1 underline-offset-4 hover:text-foreground" href="/gaze">Gaze</a>
-        <a className="underline decoration-1 underline-offset-4 hover:text-foreground" href="/">Slides</a>
+        </TopButton>
+        <a className={topLink} href="/gaze">Gaze</a>
+        <a className={topLink} href="/">Slides</a>
       </div>
     </header>
   )

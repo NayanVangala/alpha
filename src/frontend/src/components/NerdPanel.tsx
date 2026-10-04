@@ -217,7 +217,7 @@ const N = 120 // points in a full history
 const SPAN_S = 60
 
 /** Live numbers from the headband, drawn on canvas: raw EEG, band shares, spectrum, jaw level, events. */
-export function NerdPanel({ open }: { open: boolean }) {
+export function NerdPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [nerd, setNerd] = useState<Nerd | null>(null)
   const raw = useRef<HTMLCanvasElement>(null)
   const bands = useRef<HTMLCanvasElement>(null)
@@ -270,6 +270,15 @@ export function NerdPanel({ open }: { open: boolean }) {
       { n: N, seconds: SPAN_S, min: 0, max: 300, mark: { y: 256, label: "256 expected" }, unit: "samples/s" })
   }, [nerd])
 
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === "Escape") onClose()
+    }
+    addEventListener("keydown", onKey)
+    return () => removeEventListener("keydown", onKey)
+  }, [open, onClose])
+
   const live = !!nerd?.live
   return (
     <AnimatePresence>
@@ -282,9 +291,23 @@ export function NerdPanel({ open }: { open: boolean }) {
           transition={{ duration: 0.35, ease: [0.625, 0.05, 0, 1] }}
           className="fixed inset-y-0 right-0 z-[5] grid w-[min(700px,58vw)] content-start gap-[22px] overflow-y-auto border-l bg-card px-[22px] pb-7 pt-5 max-[900px]:w-full"
         >
-          <header className="flex items-baseline justify-between gap-3">
+          <header className="flex items-center justify-between gap-3">
             <h2 className="m-0 text-body font-semibold tracking-[-0.02em]">Stats for nerds</h2>
-            {live && <p className="m-0 text-label text-ultramarine">Live</p>}
+            <div className="flex items-center gap-2">
+              {live && <p className="m-0 text-label text-ultramarine">Live</p>}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.currentTarget.blur()
+                  onClose()
+                }}
+                aria-label="Close stats"
+                title="Close (Esc)"
+                className="inline-flex size-7 items-center justify-center rounded-full border bg-background text-lg leading-none text-muted-foreground shadow-xs hover:bg-accent hover:text-accent-foreground"
+              >
+                ×
+              </button>
+            </div>
           </header>
           {!live ? (
             <p className="m-0 text-label text-muted-foreground">
