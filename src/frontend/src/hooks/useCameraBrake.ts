@@ -44,7 +44,7 @@ export function useCameraBrake(): CameraBrake {
         if (s.mode === "webgazer") {
           s.stop()
           setState("error")
-          setMessage("The camera brake needs the Eyedid key — WebGazer tracks gaze position only, not eye closure.")
+          setMessage(`The camera brake needs Eyedid, and it didn't start: ${s.note ?? "unknown reason"}. WebGazer tracks gaze position only, not eye closure.`)
           return
         }
         if (s.mode !== "eyedid") {

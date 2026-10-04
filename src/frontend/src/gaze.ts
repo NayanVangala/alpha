@@ -115,7 +115,7 @@ async function begin(mouse: boolean) {
     else setRung("pointer", "the dot follows your mouse, trackpad or head mouse")
     status.textContent =
       source.mode === "eyedid" ? "Eye tracking on. Calibrate once, then look at a target."
-      : source.mode === "webgazer" ? "Eye tracking on (WebGazer, no key needed). Calibrate, then look at a target."
+      : source.mode === "webgazer" ? `Eye tracking on (WebGazer: position only, so NO camera brake). Eyedid skipped: ${source.note ?? "unknown"}. Calibrate, then look at a target.`
       : "Pointer: the dot follows your mouse (or a head mouse). The camera brake is off in this mode."
     if (source.mode === "eyedid" && localStorage.getItem("alpha.gaze.cal")) setTimeout(checkCalibration, 800)  // every startup re-checks the saved calibration
   } catch (e) {

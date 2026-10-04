@@ -8,6 +8,7 @@ export type GazeSource = {
   mode: "eyedid" | "webgazer" | "mouse"
   calibrate: (onPoint: (x: number, y: number, progress: number) => void) => Promise<void>
   stop: () => void
+  note?: string // why the better tracker was skipped, when this is a fallback
 }
 
 const SAVED = "alpha.gaze.cal"
@@ -24,18 +25,19 @@ function mouseSource(onGaze: (g: Gaze) => void): GazeSource {
 export async function startGaze(onGaze: (g: Gaze) => void, opts: { mouse?: boolean; onEyesClosed?: () => void } = {}): Promise<GazeSource> {
   // The ladder: Eyedid (needs its license key) > WebGazer (keyless, in-browser) > mouse.
   // A refused Eyedid license falls through to WebGazer instead of failing: that's the whole point.
+  let note = "no Eyedid key on the server (start it with --env-file .env)"
   if (!opts.mouse) {
     const key = (await fetch("/api/gaze/config").then((r) => r.json())).key
     if (key) {
       try {
         return await eyedidSource(onGaze, opts, key)
-      } catch {
-        // license refused or the webcam failed: try the keyless tracker
+      } catch (e) {
+        note = (e as Error).message  // license refused or the webcam failed: try the keyless tracker, and say why
       }
     }
   }
   try {
-    return await webgazerSource(onGaze)
+    return { ...(await webgazerSource(onGaze)), note }
   } catch {
     return mouseSource(onGaze)
   }
@@ -100,7 +102,7 @@ async function eyedidSource(onGaze: (g: Gaze) => void, opts: { onEyesClosed?: ()
   const sdk = new EasySeeSo()
   try {
     // gaze only: attention, blink and drowsiness detection stay off (the SDK's default), so the tracker does one job
-    await new Promise<void>((ok, fail) => sdk.init(key, ok, () => fail(new Error("The Eyedid license key was refused or couldn't be checked (it needs the internet)."))))
+    await new Promise<void>((ok, fail) => sdk.init(key, ok, (code?: unknown) => fail(new Error(`The Eyedid license key was refused or couldn't be checked (it needs the internet)${code === undefined ? "" : `, code ${String(code)}`}.`))))
   } catch (e) {
     release()
     throw e
