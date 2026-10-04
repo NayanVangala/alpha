@@ -301,12 +301,15 @@ function build() {
     tl.to(slides[1], { autoAlpha: 0, duration: 0.15, ease: "none" }, t + 0.95)
   }
 
-  // 2 -> 3: eyelids close on the "close your eyes" slide, and open on the brake demo
+  // 2 -> 3: eyelids close on the "close your eyes" slide, and open on the brake demo.
+  // The swap and the reopen start the instant the close finishes: with a scrubbed
+  // timeline any dwell at full close is a parkable black frame, so the closed
+  // state exists at exactly one playhead instant, never a range.
   {
     const t = 2.55
     tl.to("#lidTop", { yPercent: 0, y: 0, duration: 0.22, ease: "power2.in" }, t).to("#lidBottom", { yPercent: 0, y: 0, duration: 0.22, ease: "power2.in" }, t)
-    tl.set(slides[2], { autoAlpha: 0 }, t + 0.24).set(slides[3], { autoAlpha: 1 }, t + 0.24)
-    tl.to("#lidTop", { yPercent: -104, duration: 0.3, ease: "power2.out" }, t + 0.3).to("#lidBottom", { yPercent: 104, duration: 0.3, ease: "power2.out" }, t + 0.3)
+    tl.set(slides[2], { autoAlpha: 0 }, t + 0.22).set(slides[3], { autoAlpha: 1 }, t + 0.22)
+    tl.to("#lidTop", { yPercent: -104, duration: 0.3, ease: "power2.out" }, t + 0.22).to("#lidBottom", { yPercent: 104, duration: 0.3, ease: "power2.out" }, t + 0.22)
   }
 
   // 3 -> 4: the demo freezes and breaks into blue pixels, which clear to show the diagram
@@ -314,7 +317,7 @@ function build() {
     const t = 3.55
     tl.to(dissolve, { p: 1, duration: 0.45, ease: "none", onUpdate: drawCells }, t)
     tl.set(slides[3], { autoAlpha: 0 }, t + 0.46).set(slides[4], { autoAlpha: 1 }, t + 0.46)
-    tl.to(dissolve, { p: 0, duration: 0.45, ease: "none", onUpdate: drawCells }, t + 0.5)
+    tl.to(dissolve, { p: 0, duration: 0.45, ease: "none", onUpdate: drawCells }, t + 0.46) // clear starts at the swap: no parkable solid-blue frame
   }
 
   // 4 -> 5: zoom into the blue box (rein, on your computer) until blue is the whole screen: the impact slide
