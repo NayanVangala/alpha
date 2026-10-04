@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { Toaster, toast } from "sonner"
-import { Crumbs, Header, KeysLegend, StartOverlay } from "@/components/Chrome"
+import { Crumbs, KeysLegend, StartOverlay } from "@/components/Chrome"
+import { Sidebar } from "@/components/Sidebar"
 import { AgentAsk } from "@/components/AgentAsk"
 import { BrainPanel } from "@/components/Brain"
 import { Brake } from "@/components/Brake"
@@ -89,8 +90,8 @@ export default function App() {
       )}
       {s && !open && <Gate h={s.headband} onConnectClick={start} />}
       {s && open && (
-        <div className={cn("flex min-h-screen flex-col", nerdOpen && "min-[901px]:mr-[min(500px,42vw)]")}>
-          <Header
+        <div className="flex min-h-screen flex-col md:flex-row">
+          <Sidebar
             status={status}
             live={!lost && !!h?.live}
             listen={listen}
@@ -101,14 +102,16 @@ export default function App() {
             onDisconnect={() => void api.disconnect()}
             onNerd={() => setNerdOpen((v) => !v)}
           />
-          <Crumbs s={s} hearing={listen.interim} />
-          {s.brake && <Brake className="mx-[var(--pad-x)] mt-3" />}
-          {s.claude_code && <BrainPanel s={s} className="mx-[var(--pad-x)] mt-3 max-w-xl" />}
-          <main className="flex flex-1 flex-col px-[var(--pad-x)] pb-6 pt-5">
-            {s.agent && <AgentAsk agent={s.agent} alpha={s.headband.alpha} />}
-            {cards ? <Deck s={s} /> : <Confirm s={s} />}
-          </main>
-          <KeysLegend />
+          <div className={cn("flex min-h-screen min-w-0 flex-1 flex-col", nerdOpen && "min-[901px]:mr-[min(500px,42vw)]")}>
+            <Crumbs s={s} hearing={listen.interim} />
+            {s.brake && <Brake className="mx-[var(--pad-x)] mt-3" />}
+            {s.claude_code && <BrainPanel s={s} className="mx-[var(--pad-x)] mt-3 max-w-xl" />}
+            <main className="flex flex-1 flex-col px-[var(--pad-x)] pb-6 pt-5">
+              {s.agent && <AgentAsk agent={s.agent} alpha={s.headband.alpha} />}
+              {cards ? <Deck s={s} /> : <Confirm s={s} />}
+            </main>
+            <KeysLegend />
+          </div>
         </div>
       )}
       {ready && s.screen === "agent" && s.agent?.gate && !s.overlay && <RiskGate s={s} />}
