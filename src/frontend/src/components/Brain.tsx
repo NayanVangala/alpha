@@ -38,9 +38,9 @@ function Trace({ name, what, trail, brain }: { name: string; what: string; trail
         </div>
         <div className="text-tag text-muted-foreground">{what}</div>
       </div>
-      <svg viewBox={`0 0 ${N} 20`} preserveAspectRatio="none" className="h-7 w-full overflow-visible" role="img" aria-label={`${name}: ${what}${over ? ", past the line" : ""}`}>
-        <line x1="0" x2={N} y1="10" y2="10" className="stroke-foreground/40" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
-        <path d={path(trail)} fill="none" className={brain ? "stroke-ultramarine" : "stroke-foreground"} strokeWidth="1.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      <svg viewBox={`0 0 ${N} 20`} preserveAspectRatio="none" className="h-12 w-full overflow-visible" role="img" aria-label={`${name}: ${what}${over ? ", past the line" : ""}`}>
+        <line x1="0" x2={N} y1="10" y2="10" className="stroke-foreground/60" strokeWidth="1.5" strokeDasharray="4 3" vectorEffect="non-scaling-stroke" />
+        <path d={path(trail)} fill="none" className={cn(brain ? "stroke-ultramarine" : "stroke-foreground", over && "drop-shadow-[0_0_6px_currentColor]")} strokeWidth="2.25" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
       </svg>
     </div>
   )

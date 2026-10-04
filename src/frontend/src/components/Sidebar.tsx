@@ -99,7 +99,7 @@ export function Sidebar({ status, live, listen, nerdOpen, blinks, camera, onReca
       </div>
 
       <div className="hidden min-w-0 md:block" aria-live="polite">
-        <p className="truncate px-3 text-xs text-muted-foreground" title={status}>
+        <p className="line-clamp-3 px-3 text-xs leading-snug text-muted-foreground" title={status}>
           {status}
         </p>
         <div className="px-3 pt-1 text-xs text-muted-foreground">
