@@ -242,3 +242,25 @@ def test_the_camera_can_brake_but_only_by_seeing_eyes_close(connected):
     client.post("/api/hooks", json={"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "pytest"}})
     assert client.post("/api/input", json={"kind": "eyes_closed", "by": "camera"}).status_code == 200
     assert server.board.state()["ledger"][-1]["by"] == "camera"  # labeled as the camera, never as BRAIN
+
+
+def test_open_ide_rejects_unknown_agent(api):
+    client, _ = api
+    assert client.post("/api/open-ide", json={"agent": "evil; rm -rf ~"}).status_code == 422
+
+
+def test_open_ide_non_darwin_returns_manual_command(api, monkeypatch):
+    client, _ = api
+    monkeypatch.setattr("sys.platform", "linux")
+    r = client.post("/api/open-ide", json={"agent": "codex"}).json()
+    assert r["ok"] is False and "codex" in r["manual"] and "demo" in r["manual"]
+
+
+def test_open_ide_darwin_opens_vscode_and_terminal(api, monkeypatch):
+    client, _ = api
+    monkeypatch.setattr("sys.platform", "darwin")
+    calls = []
+    monkeypatch.setattr("subprocess.run", lambda *a, **k: calls.append(a[0]))
+    assert client.post("/api/open-ide", json={"agent": "claude"}).json() == {"ok": True, "agent": "claude"}
+    assert calls[0][:3] == ["open", "-a", "Visual Studio Code"] and "pager" in calls[0][3]
+    assert calls[1][0] == "osascript" and "pager" in calls[1][2] and "&& claude" in calls[1][2]

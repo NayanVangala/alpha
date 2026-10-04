@@ -485,6 +485,37 @@ def apps(hours: float = 8):
     return app_summary(min(hours, 24))
 
 
+class OpenIdeRequest(BaseModel):
+    agent: Literal["claude", "codex"] = "claude"
+
+
+@app.post("/api/open-ide")
+def open_ide(req: OpenIdeRequest):
+    """One click sets up the live demo: demo/pager opens in VS Code and a Terminal
+    starts the agent there. User-initiated only; the agent name is allow-listed."""
+    import shlex
+    import subprocess
+    import sys
+
+    pager = Path(__file__).resolve().parents[2] / "demo" / "pager"
+    agent_cmd = {"claude": "claude", "codex": "codex"}[req.agent]
+    term_cmd = f"cd {shlex.quote(str(pager))} && {agent_cmd}"
+    if sys.platform != "darwin":
+        return {"ok": False, "manual": f"Open {pager} in your editor, then run: {term_cmd}"}
+    # VS Code first (best effort: it may not be installed), then Terminal with the agent.
+    try:
+        subprocess.run(["open", "-a", "Visual Studio Code", str(pager)], capture_output=True, timeout=15)
+    except (OSError, subprocess.SubprocessError):
+        pass
+    escaped = term_cmd.replace("\\", "\\\\").replace('"', '\\"')
+    script = f'tell application "Terminal" to activate\ntell application "Terminal" to do script "{escaped}"'
+    try:
+        subprocess.run(["osascript", "-e", script], check=True, capture_output=True, timeout=15)
+    except (OSError, subprocess.SubprocessError) as e:
+        return {"ok": False, "manual": f"Couldn't open Terminal ({e}): run: {term_cmd}"}
+    return {"ok": True, "agent": req.agent}
+
+
 def main():
     global session
     ap = argparse.ArgumentParser()

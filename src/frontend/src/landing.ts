@@ -505,5 +505,24 @@ addEventListener("keydown", (e) => {
   if ((e.target as HTMLElement).closest("button, a, input")) return
   stopAuto()
 })
+/* ---------- load up an agent: one click opens VS Code on demo/pager and a Terminal running it ---------- */
+const loadMsg = $("loadmsg")
+async function loadIde(agent: "claude" | "codex") {
+  const label = agent === "claude" ? "Claude Code" : "Codex"
+  loadMsg.textContent = `Opening ${label}…`
+  try {
+    const r = await fetch("/api/open-ide", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ agent }),
+    })
+    const j = await r.json()
+    loadMsg.textContent = j.ok ? `${label} is open — check your Terminal and VS Code.` : j.manual
+  } catch {
+    loadMsg.textContent = "Couldn't reach the rein server. Is it running?"
+  }
+}
+$<HTMLButtonElement>("loadclaude").addEventListener("click", () => loadIde("claude"))
+$<HTMLButtonElement>("loadcodex").addEventListener("click", () => loadIde("codex"))
 showCard()
 requestAnimationFrame(demoFrame)

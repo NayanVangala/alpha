@@ -38,6 +38,7 @@ button.bubble { background: none; border: 0; padding: 0; cursor: pointer; color:
 .bubble span { background: var(--blue); color: #fff; padding: 0 18px; display: grid; place-items: center; border-radius: 8px; height: 42px; }
 .bubble i { font-style: normal; background: var(--bg); color: var(--ink); width: 42px; height: 42px; border-radius: 8px; display: grid; place-items: center; transition: transform 0.5s var(--ease); }
 .bubble:hover i { transform: rotate(-45deg); }
+.loadrow { display: flex; gap: 12px; flex-wrap: wrap; }
 
 /* slides */
 #deck { position: fixed; inset: 0; }
