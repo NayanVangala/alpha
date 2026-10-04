@@ -148,6 +148,25 @@ addEventListener("keydown", (e) => {
   }
 })
 
+/* Gaze points, bite picks: watch the board for real headband input. When the wearer's input count rises and a tile is
+   lit (gazed or scanned), confirm it — the same as Space. Skipped while the brake is on, so closing your eyes to stop
+   doesn't also "select" the tile you're looking at. */
+let lastWearer = -1
+setInterval(async () => {
+  let s: { counts?: { wearer?: number }; brake?: unknown } | null = null
+  try {
+    s = (await (await fetch("/api/board")).json()) as { counts?: { wearer?: number }; brake?: unknown }
+  } catch {
+    return // board not running: the gaze page still works on its own
+  }
+  const w = s?.counts?.wearer ?? -1
+  if (lastWearer >= 0 && w > lastWearer && on && !s?.brake) {
+    picked.textContent = `Selected: ${on.textContent} (bite)`
+    if (rung === "scan") scanner.restart(performance.now())
+  }
+  lastWearer = w
+}, 150)
+
 begin(false)
 
 /* The accuracy test: each of the six targets lights up twice, in random order, for two seconds. A target counts as hit when
